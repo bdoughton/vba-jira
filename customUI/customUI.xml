@@ -3,13 +3,24 @@
      <tabs> 
        <tab id="tb_Jira" label="Jira">
          <group id="gp_Jira-Agile" label="Jira Agile">
-           <splitButton id="mySplitButton" size="large">
+           <splitButton id="mySplitButton1" size="large">
                <button id="Button1" label="Get Jira Data" image="jira" supertip="This is a splitButton." onAction="GetJiraAgileBoard" />
-               <menu id="splitMenu" itemSize="large">
+               <menu id="splitMenu1" itemSize="large">
                  <!-- use itemSize = large or use normal -->
                  <button id="Button2" imageMso="SearchCalendarsOnline" label="Update Base URL" onAction="UpdateBaseUrl" description="Update the base URL"/>
                  <button id="Button3" imageMso="Head" label="Update Login" onAction="UpdateUser" description="Update Name and Password"/>
                  <button id="Button4" imageMso="TableFind" label="Update Board ID" onAction="ThisDocument.Macro16" description="Update the Board ID"/>
+               </menu>
+           </splitButton>
+         </group >
+         <group id="gp_Jira-Scrum-Stats" label="Jira Stats">
+           <splitButton id="mySplitButton2" size="large">
+               <button id="Button5" label="Get Jira Data" imageMso="SparklineColumnInsert" supertip="This is a splitButton." onAction="GetTeamStats" />
+               <menu id="splitMenu2" itemSize="large">
+                 <!-- use itemSize = large or use normal -->
+                 <button id="Button6" imageMso="SearchCalendarsOnline" label="Update Base URL" onAction="UpdateBaseUrl" description="Update the base URL"/>
+                 <button id="Button7" imageMso="Head" label="Update Login" onAction="UpdateUser" description="Update Name and Password"/>
+                 <button id="Button8" imageMso="TableFind" label="Update Board ID" onAction="ThisDocument.Macro16" description="Update the Board ID"/>
                </menu>
            </splitButton>
          </group >

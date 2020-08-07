@@ -1,7 +1,7 @@
-Attribute VB_Name = "TeamStats"
+Attribute VB_Name = "JiraScrumTeamStats"
 ''
-' VBA-ScrumTeamStats v1
-' (c) Ben Doughton
+' VBA-JiraScrumTeamStats v2
+' (c) Ben Doughton - https://github.com/bdoughton/vba-jira
 '
 ' JIRA Scrum Team Stats VBA
 '
@@ -12,17 +12,92 @@ Attribute VB_Name = "TeamStats"
 ' Note: This is designed to be a standalone module for TeamStats so if there are other modules
 '       from the same family of Jira apicalls there could be duplication of code
 '
-
-' @author ben.doughton@lch.com
-' @license MIT (http://www.opensource.org/licenses/mit-license.php)
+' @module JiraScrumTeamStats
+' @author bdoughton@me.com
+' @license GNU General Public License v3.0 (https://opensource.org/licenses/GPL-3.0)
 '' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
+
 Option Explicit
+Option Base 1
 Public RemainingSprintTime As Long
 Public DaysInSprint As Long
 Public LastSprintName As String
 Public LastSprintId As Integer
+Function CreateWorkSheet(ByVal name As String, Optional ByRef headings As Variant) As Worksheet
 
-Sub GetTeamStats()
+'' Checks if a Worksheet exists and creates one if it doesn't
+
+Dim ws_exists As Boolean
+Dim ws As Worksheet
+
+    For Each ws In ActiveWorkbook.Worksheets
+        If ws.name = name Then
+            ws_exists = True
+            Exit For
+        Else
+            ws_exists = False
+        End If
+    Next ws
+
+    If ws_exists Then
+        Set CreateWorkSheet = ActiveWorkbook.Worksheets(name)
+    Else
+        Set CreateWorkSheet = ActiveWorkbook.Sheets.Add
+        CreateWorkSheet.name = name
+        CreateWorkSheet.Range("A1").Resize(1, UBound(headings)).Value = headings ' assumes a one dimensional array; base 1
+    End If
+
+End Function
+Function ws_TeamStats() As Worksheet
+    Set ws_TeamStats = CreateWorkSheet("ws_TeamStats")
+End Function
+Function ws_LeadTimeData() As Worksheet
+    Dim HeadingsArr As Variant
+    HeadingsArr = Array("id", "key", "issueType", "createdDate", "sprintStartDate", "releaseDate", "totalTime", "totalString")
+    Set ws_LeadTimeData = CreateWorkSheet("ws_LeadTimeData", HeadingsArr)
+End Function
+Function ws_WiPData() As Worksheet
+    Dim HeadingsArr As Variant
+    HeadingsArr = Array("id", "key", "issueType", "inProgressDate", "endProgressDate", "releaseDate")
+    Set ws_WiPData = CreateWorkSheet("ws_WiPData", HeadingsArr)
+End Function
+Function ws_IncompleteIssuesData() As Worksheet
+    Dim HeadingsArr As Variant
+    HeadingsArr = Array("id", "key", "issueType", "project", "epicKey", "storyPoints", "status", "statusCategory", "aggregateTimeEstimate", "sprintState")
+    Set ws_IncompleteIssuesData = CreateWorkSheet("ws_IncompleteIssuesData", HeadingsArr)
+End Function
+Function ws_VelocityData() As Worksheet
+    Dim HeadingsArr As Variant
+    HeadingsArr = Array("SprintId", "SprintName", "State", "Committed", "Completed")
+    Set ws_VelocityData = CreateWorkSheet("ws_VelocityData", HeadingsArr)
+End Function
+Function ws_TeamsData() As Worksheet
+    Dim HeadingsArr As Variant
+    HeadingsArr = Array("id", "title", "resourceId", "personId", "personId2", "JiraUserName")
+    Set ws_TeamsData = CreateWorkSheet("ws_TeamsData", HeadingsArr)
+End Function
+Function ws_Work() As Worksheet
+    Dim HeadingsArr As Variant
+    HeadingsArr = Array("key", "rapidViewId", "timeSpent")
+    Set ws_Work = CreateWorkSheet("ws_Work", HeadingsArr)
+End Function
+Function ws_ProjectData() As Worksheet
+    Dim HeadingsArr As Variant
+    HeadingsArr = Array("id", "key", "projectName", "category")
+    Set ws_ProjectData = CreateWorkSheet("ws_ProjectData", HeadingsArr)
+End Function
+Function TeamId() As String
+''Placeholder to define other values
+    TeamId = "81"
+End Function
+Function rapidViewId() As String
+    rapidViewId = InputBox("rapidViewId?")
+End Function
+Function boardJql() As String
+''Placeholder to define other values
+    boardJql = "Team = 81 AND CATEGORY = calm AND NOT issuetype in (Initiative) ORDER BY Rank ASC"
+End Function
+Sub GetTeamStats(control As IRibbonControl)
 
 ''
 ' This should be run by the user and sets up all the underlying api calls to get the teams stats
@@ -30,68 +105,43 @@ Sub GetTeamStats()
 '' Known limitations with this macro:
 ' (1) Work in progress - run each call individually by commenting out the other api calls
 
-Dim callResult As Long
-Dim url As String
-Dim l As Integer
-Dim boardJql As String
-Dim blnRoll As Boolean
-Dim msgCaption As String
-
-'Fetch the base url
-url = PublicVariables.JiraBaseUrl
-'Fetch the board query
-boardJql = "Team = 81 AND CATEGORY = calm AND NOT issuetype in (Initiative) ORDER BY Rank ASC"
-
-' Allow the user to confirm the base url before executing the code
-If MsgBox("You are using this Jira url: " & url, vbOKCancel) = vbCancel Then
-    msgCaption = "Cancelled action"
-    Exit Sub
-End If
-
-If MsgBox("Do you want to roll the previous data?", vbYesNo) = vbYes Then
-    blnRoll = True
-Else
-    blnRoll = False
-End If
-
-'Check if a user is logged in and if not request login up to 3 times
-'The MyCredentials API is forcing a system login so my custom form only
-'shows and captures login details if the system login fails
-l = 0
-Do While RestApiCalls.MyCredentials(encodedAuth, url) <> 200
-    Frm_JiraLogin.Show
-    l = l + 1
-    If l = 3 Then
-        MsgBox ("Too Many Unsuccessful Login Attempts")
-        Exit Sub
-    End If
-Loop
-
-Application.EnableEvents = False
+'Pause calculations and screen updating and make read-only worksheets visible
+'These actions are reversed at the end of the macro
 Application.ScreenUpdating = False
+Application.EnableEvents = False
 Application.Calculation = xlCalculationManual
 
-''Rollstats True of False
-funcRollStats (blnRoll)
+    ' --- Comment out the respective value to enable or suspend logging
+    WebHelpers.EnableLogging = True
+'    WebHelpers.EnableLogging = False
+    
+    'Check if a user is logged in and if not perform login, if login fails exit
+    If Not IsLoggedIn Then
+        If Not LoginUser Then Exit Sub
+    End If
+    
+    ''Rollstats True of False
+    'Dim blnRoll As Boolean
+    'If MsgBox("Do you want to roll the previous data?", vbYesNo) = vbYes Then
+    '    blnRoll = True
+    'Else
+    '    blnRoll = False
+    'End If
+    'funcRollStats (blnRoll)
+  
+    
+    ''Fetch Data from Api
+    Dim callResult(1 To 5) As WebStatusCode
+    callResult(1) = funcGet3MonthsOfDoneJiras(boardJql, "In Progress", "Done", 0, 2)
+'    callResult(2) = funcGetIncompleteJiras("username:password", "url", boardJql, 0, 2)
+'    callResult(3) = funcGetVelocity("username:password", "url", rapidViewId)
+'    callResult(4) = funcPostTeamsFind("username:password", "url")
+'
+'    ''Need to save the RemainingSprintTime to the right cell
+'    callResult(5) = funcGetSprintBurnDown("username:password", "url", rapidViewId, CStr(ws_VelocityData.Range("A2").Value))
 
-''Fetch Data from Api
-callResult = TeamStats.funcGet3MonthsOfDoneJiras(encodedAuth, url, boardJql, "In Progress", "Done", 0, 2)
-'callResult = TeamStats.funcGetIncompleteJiras(encodedAuth, url, boardJql, 0, 2)
-'callResult = TeamStats.funcGetVelocity(encodedAuth, url, CStr(RapidBoardId))
-'callResult = TeamStats.funcPostTeamsFind(encodedAuth, url)
 
-''Need to save the RemainingSprintTime to the right cell
-'callResult = TeamStats.funcGetSprintBurnDown(encodedAuth, url, CStr(RapidBoardId), CStr(ws_VelocityData.Range("A2").value))
-
-'Output error if call was not successful
-If callResult <> 200 Then
-    Application.EnableEvents = True
-    Application.ScreenUpdating = True
-    Application.Calculation = xlCalculationAutomatic
-    MsgBox ("Error")
-    Exit Sub
-End If
-
+'Reverse the opening statements that paused calculations and screen updating
 Application.EnableEvents = True
 Application.ScreenUpdating = True
 Application.Calculation = xlCalculationAutomatic
@@ -118,9 +168,8 @@ End If
 
 End Function
 
-Private Function funcGet3MonthsOfDoneJiras(ByVal auth As String, ByVal baseUrl As String, _
-            ByVal boardJql As String, ByVal inProgressState As String, ByVal endProgressState As String, _
-            ByRef startAtVal, r As Integer) As Long
+Private Function funcGet3MonthsOfDoneJiras(ByVal boardJql As String, ByVal inProgressState As String, ByVal endProgressState As String, _
+            ByRef startAtVal, r As Integer) As WebStatusCode
 
 ''
 ' Source Jiras that are in a Done state and were included in a sprint and had a fixVersion that was updated in the last 24 weeks
@@ -142,13 +191,45 @@ Private Function funcGet3MonthsOfDoneJiras(ByVal auth As String, ByVal baseUrl A
 ' (5) there is no error handling around the second api call to get the subtasks which could fail
 ' (6) ws_LeadTimeData sheet needs to be made active
 
-Dim apicall As String
 Dim jql As String
-Dim http, JSON, Item, fixversion, history, changeitem, sprint As Object
-Dim i, h, c As Integer
-Dim CleanJSON As String
+jql = "fixversion changed after -24w AND " & _
+        "fixVersion is not EMPTY AND " & _
+        "Sprint is not EMPTY AND " & _
+        "NOT issuetype in (Theme,Initiative,Epic,Test,subTaskIssueTypes()) AND " & _
+        "statusCategory in (Done) AND " & _
+        boardJql
+
+Dim apiFields As String
+apiFields = "key," _
+        & "issuetype," _
+        & "fixVersions," _
+        & "resolutiondate," _
+        & sprints & "," _
+        & "created," _
+        & "changelog"
+
+'Define the new JQLRequest
+Dim JQL_PBI_Request As New WebRequest
+With JQL_PBI_Request
+    .Resource = "api/2/search"
+    .Method = WebMethod.HttpGet
+    .AddQuerystringParam "jql", jql
+    .AddQuerystringParam "fields", apiFields
+    .AddQuerystringParam "startAt", startAtVal
+    .AddQuerystringParam "maxResults", "1000"
+    .AddQuerystringParam "expand", "changelog"
+End With
+            
+Dim JQL_PBI_Search_Response As New JiraResponse
+Dim JQL_Search_Response As New WebResponse
+Dim Item As Object
+Dim history As Object
+Dim changeitem As Object
+Dim fixversion As Object
+Dim i As Integer
+Dim h As Integer
+Dim c As Integer
 Dim rng_author As Range
-Dim rng_issue As Range
 Dim WiPRow As Integer
 Dim rng_Parent As Range
 Dim col As Integer
@@ -156,92 +237,60 @@ Dim dictResourceNm As Dictionary
 Dim dictTimeLoggedToStory As Dictionary
 Dim collIssueKey As New Collection
 
-jql = "fixversion changed after -24w AND " & _
-        "fixVersion is not EMPTY AND " & _
-        "Sprint is not EMPTY AND " & _
-        "NOT issuetype in (Initiative,Epic,Test,subTaskIssueTypes()) AND " & _
-        "statusCategory in (Done) AND " & _
-        boardJql
+Set JQL_Search_Response = JQL_PBI_Search_Response.JiraCall(JQL_PBI_Request)
 
-apicall = _
-    baseUrl & "rest/api/latest/search?jql=" _
-    & jql _
-    & "&fields=" _
-        & "key," _
-        & "issuetype," _
-        & "fixVersions," _
-        & "resolutiondate," _
-        & sprints & "," _
-        & "created," _
-        & "changelog" _
-        & "&startAt=" _
-        & 0 _
-    & "&maxResults=1000&expand=changelog"
-            
-Set http = CreateObject("MSXML2.XMLHTTP")
+funcGet3MonthsOfDoneJiras = JQL_Search_Response.StatusCode
 
-http.Open "GET", apicall, False
-http.setRequestHeader "Content-Type", "application/json"
-http.setRequestHeader "X-Atlassian-Token", "no-check"
-http.setRequestHeader "Authorization", "Basic " & auth
-http.Send
-
-funcGet3MonthsOfDoneJiras = http.Status
-
-Debug.Print (apicall)
-
-If http.Status = 200 Then
-    Set dictTimeLoggedToStory = New Scripting.Dictionary
-    CleanJSON = CleanSprintsAndCustomFields(http.responseText)
-    Set JSON = ParseJson(CleanJSON)
-    startAtVal = startAtVal + 1000 'Increment the next start position based on maxResults above
+If funcGet3MonthsOfDoneJiras = Ok Then
+    Set dictTimeLoggedToStory = New Dictionary
+    startAtVal = startAtVal + 1000 'Increment the next start position based on maxResults above -- making this smaller will speed up the API calls
     i = 1 'reset the issue to 1
     WiPRow = r
-    For Each Item In JSON("issues")
+    For Each Item In JQL_Search_Response.Data("issues")
         Set dictResourceNm = New Dictionary
         h = 1 'reset the change history to 1
-        If CDate(JSON("issues")(i)("fields")("fixVersions")(1)("releaseDate")) >= DateAdd("m", -3, "01/" & Month(Now()) & "/" & Year(Now())) Then 'Only include if the release date was in the last 3 months
+        If CDate(JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate")) >= DateAdd("m", -3, "01/" & Month(Now()) & "/" & Year(Now())) Then 'Only include if the release date was in the last 3 months
             With ws_LeadTimeData
-                .Cells(r, 1).Value = JSON("issues")(i)("id")
-                .Cells(r, 2).Value = JSON("issues")(i)("key")
-                .Cells(r, 3).Value = JSON("issues")(i)("fields")("issuetype")("name")
-                .Cells(r, 4).Value = JSON("issues")(i)("fields")("created")
-                .Cells(r, 5).Value = sprint_ParseString(JSON("issues")(i)("fields")("sprints")(1), "startDate")
-                If JSON("issues")(i)("fields")("fixVersions")(1)("releaseDate") > JSON("issues")(i)("fields")("created") Then
-                    .Cells(r, 6).Value = JSON("issues")(i)("fields")("fixVersions")(1)("releaseDate") 'Always use the 1st fixVersion, even if there are multiple
+                .Cells(r, 1).Value = JQL_Search_Response.Data("issues")(i)("id")
+                .Cells(r, 2).Value = JQL_Search_Response.Data("issues")(i)("key")
+                .Cells(r, 3).Value = JQL_Search_Response.Data("issues")(i)("fields")("issuetype")("name")
+                .Cells(r, 4).Value = JQL_Search_Response.Data("issues")(i)("fields")("created")
+                .Cells(r, 5).Value = sprint_ParseString(JQL_Search_Response.Data("issues")(i)("fields")(sprints)(1), "startDate")
+                If JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate") > JQL_Search_Response.Data("issues")(i)("fields")("created") Then
+                    .Cells(r, 6).Value = JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate") 'Always use the 1st fixVersion, even if there are multiple
                 Else
-                    .Cells(r, 6).Value = Left(JSON("issues")(i)("fields")("resolutiondate"), 10) 'use the resolution date if there is no fixVersion. Note: this can lead to incorrect deployment frequency
+                    .Cells(r, 6).Value = Left(JQL_Search_Response.Data("issues")(i)("fields")("resolutiondate"), 10) 'use the resolution date if there is no fixVersion. Note: this can lead to incorrect deployment frequency
                     
                 End If
-                For Each history In JSON("issues")(i)("changelog")("histories")
+                For Each history In JQL_Search_Response.Data("issues")(i)("changelog")("histories")
                     c = 1 'reset the change item to 1
-                    For Each changeitem In JSON("issues")(i)("changelog")("histories")(h)("items")
-                        If JSON("issues")(i)("changelog")("histories")(h)("items")(c)("field") = "status" Then
-                            Select Case JSON("issues")(i)("changelog")("histories")(h)("items")(c)("toString")
+                    For Each changeitem In JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("items")
+                        If JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("items")(c)("field") = "status" Then
+                            Select Case JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("items")(c)("toString")
                                 Case inProgressState 'enter the date the issue transitioned to its inProgressState
-                                    ws_WiPData.Cells(WiPRow, 1).Value = JSON("issues")(i)("id")
-                                    ws_WiPData.Cells(WiPRow, 2).Value = JSON("issues")(i)("key")
-                                    ws_WiPData.Cells(WiPRow, 3).Value = JSON("issues")(i)("fields")("issuetype")("name")
-                                    For Each fixversion In JSON("issues")(i)("fields")("fixVersions")
-                                        ws_WiPData.Cells(WiPRow, 6).Value = JSON("issues")(i)("fields")("fixVersions")(1)("releaseDate")  'Always use the 1st fixVersion, even if there are multiple
+                                    ws_WiPData.Cells(WiPRow, 1).Value = JQL_Search_Response.Data("issues")(i)("id")
+                                    ws_WiPData.Cells(WiPRow, 2).Value = JQL_Search_Response.Data("issues")(i)("key")
+                                    ws_WiPData.Cells(WiPRow, 3).Value = JQL_Search_Response.Data("issues")(i)("fields")("issuetype")("name")
+                                    For Each fixversion In JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")
+                                        ws_WiPData.Cells(WiPRow, 6).Value = JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate")  'Always use the 1st fixVersion, even if there are multiple
                                     Next
-                                    ws_WiPData.Cells(WiPRow, 4).Value = JSON("issues")(i)("changelog")("histories")(h)("created")
+                                    ws_WiPData.Cells(WiPRow, 4).Value = JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("created")
                                 Case endProgressState 'enter the date the issue transitioned to its endProgressState
-                                    ws_WiPData.Cells(WiPRow, 5).Value = JSON("issues")(i)("changelog")("histories")(h)("created")
+                                    ws_WiPData.Cells(WiPRow, 5).Value = JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("created")
                                     WiPRow = WiPRow + 1
                             End Select
-                        ElseIf JSON("issues")(i)("changelog")("histories")(h)("items")(c)("field") = "timespent" Then
-                            dictResourceNm(JSON("issues")(i)("changelog")("histories")(h)("author")("key")) = Val(JSON("issues")(i)("changelog")("histories")(h)("items")(c)("toString"))
-                            Set rng_author = ws_LeadTimeData.Rows(1).Find(JSON("issues")(i)("changelog")("histories")(h)("author")("key"), LookIn:=xlValues, LookAt:=xlWhole)
+                        ElseIf JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("items")(c)("field") = "timespent" Then
+                            dictResourceNm(JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("author")("key")) = Val(JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("items")(c)("toString"))
+                            Set rng_author = ws_LeadTimeData.Rows(1).Find(JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("author")("key"), LookIn:=xlValues, LookAt:=xlWhole)
                             If rng_author Is Nothing Then
-                                ws_LeadTimeData.Range("A1").End(xlToRight).Offset(0, 1).Value = JSON("issues")(i)("changelog")("histories")(h)("author")("key")
+                                ws_LeadTimeData.Range("A1").End(xlToRight).Offset(0, 1).Value = JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("author")("key")
                             End If
                         End If
                         c = c + 1
                     Next
                     h = h + 1
                 Next
-            collIssueKey.Add dictResourceNm, JSON("issues")(i)("key")
+            collIssueKey.Add dictResourceNm, JQL_Search_Response.Data("issues")(i)("key")
             End With
             r = r + 1 'increment the row
         End If
@@ -249,51 +298,50 @@ If http.Status = 200 Then
     Next
     
     '' This next section cycles through all the sub-tasks and adds up the time logged to each
-    
+
     For Each rng_Parent In ws_LeadTimeData.Range("B2:B" & ws_LeadTimeData.Range("A1").End(xlDown).Row)
-        apicall = _
-        baseUrl & "rest/api/latest/search?jql=" _
-        & "Parent = " & rng_Parent.Value _
-        & "&fields=" _
-            & "key," _
-            & "issuetype," _
-            & "changelog" _
-            & "&startAt=" _
-            & 0 _
-        & "&maxResults=1000&expand=changelog"
-        
-        Debug.Print apicall
-        
-        Set http = CreateObject("MSXML2.XMLHTTP")
+        jql = "Parent = " & rng_Parent.Value
     
-        http.Open "GET", apicall, False
-        http.setRequestHeader "Content-Type", "application/json"
-        http.setRequestHeader "X-Atlassian-Token", "no-check"
-        http.setRequestHeader "Authorization", "Basic " & auth
-        http.Send
-        Set JSON = ParseJson(http.responseText)
+        apiFields = "key," _
+            & "issuetype," _
+            & "changelog"
+
+        Dim JQL_SubTask_Request As New WebRequest
+        With JQL_SubTask_Request
+            .Resource = "api/2/search"
+            .Method = WebMethod.HttpGet
+            .AddQuerystringParam "jql", jql
+            .AddQuerystringParam "fields", apiFields
+            .AddQuerystringParam "startAt", "0"
+            .AddQuerystringParam "maxResults", "1000"
+            .AddQuerystringParam "expand", "changelog"
+        End With
+
+        Dim JQL_SubTask_Search_Response As New JiraResponse
+        Set JQL_Search_Response = JQL_SubTask_Search_Response.JiraCall(JQL_SubTask_Request)
+
         i = 1 'reset the issue to 1
-        For Each Item In JSON("issues")
+        For Each Item In JQL_Search_Response.Data("issues")
             h = 1 'reset the change history to 1
             With ws_LeadTimeData
-                For Each history In JSON("issues")(i)("changelog")("histories")
+                For Each history In JQL_Search_Response.Data("issues")(i)("changelog")("histories")
                     c = 1 'reset the change item to 1
-                    For Each changeitem In JSON("issues")(i)("changelog")("histories")(h)("items")
-                        If JSON("issues")(i)("changelog")("histories")(h)("items")(c)("field") = "timespent" Then
-                            Set rng_author = ws_LeadTimeData.Rows(1).Find(JSON("issues")(i)("changelog")("histories")(h)("author")("key"), LookIn:=xlValues, LookAt:=xlWhole)
+                    For Each changeitem In JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("items")
+                        If JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("items")(c)("field") = "timespent" Then
+                            Set rng_author = ws_LeadTimeData.Rows(1).Find(JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("author")("key"), LookIn:=xlValues, LookAt:=xlWhole)
                             If rng_author Is Nothing Then
-                                ws_LeadTimeData.Range("A1").End(xlToRight).Offset(0, 1).Value = JSON("issues")(i)("changelog")("histories")(h)("author")("key")
+                                ws_LeadTimeData.Range("A1").End(xlToRight).Offset(0, 1).Value = JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("author")("key")
                             End If
                             'set the new value for the story to be the old value for the story + the new value for the sub-task - the old value for the sub task
-                            If Not JSON("issues")(i)("changelog")("histories")(h)("items")(c)("fromString") = "" Then
-                                collIssueKey(rng_Parent.Value)(JSON("issues")(i)("changelog")("histories")(h)("author")("key")) = _
-                                    collIssueKey(rng_Parent.Value)(JSON("issues")(i)("changelog")("histories")(h)("author")("key")) _
-                                    + Val(JSON("issues")(i)("changelog")("histories")(h)("items")(c)("toString")) _
-                                    - Val(JSON("issues")(i)("changelog")("histories")(h)("items")(c)("fromString"))
+                            If Not JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("items")(c)("fromString") = "" Then
+                                collIssueKey(rng_Parent.Value)(JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("author")("key")) = _
+                                    collIssueKey(rng_Parent.Value)(JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("author")("key")) _
+                                    + Val(JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("items")(c)("toString")) _
+                                    - Val(JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("items")(c)("fromString"))
                             Else
-                                collIssueKey(rng_Parent.Value)(JSON("issues")(i)("changelog")("histories")(h)("author")("key")) = _
-                                    collIssueKey(rng_Parent.Value)(JSON("issues")(i)("changelog")("histories")(h)("author")("key")) _
-                                    + Val(JSON("issues")(i)("changelog")("histories")(h)("items")(c)("toString"))
+                                collIssueKey(rng_Parent.Value)(JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("author")("key")) = _
+                                    collIssueKey(rng_Parent.Value)(JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("author")("key")) _
+                                    + Val(JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("items")(c)("toString"))
                             End If
                         End If
                         c = c + 1
@@ -310,7 +358,8 @@ If http.Status = 200 Then
         
         col = ws_LeadTimeData.Range("A1").End(xlToRight).Column
         rng_Parent.Offset(0, 5).Value = Application.WorksheetFunction.Sum(Range(Cells(rng_Parent.Row, 9), Cells(rng_Parent.Row, col)))
-        rng_Parent.Offset(0, 6).Value = PublicVariables.jiratime(rng_Parent.Offset(0, 5).Value)
+        rng_Parent.Offset(0, 6).Value = Jira.jiratime(rng_Parent.Offset(0, 5).Value)
+        Set JQL_SubTask_Request = Nothing
     Next rng_Parent
 End If
 
@@ -454,8 +503,6 @@ If http.Status = 200 Then
     Next
 End If
 
-Debug.Print (strDebug("GetVelocity", "rapidViewId: " & rapidViewId, http.Status, http.getResponseHeader("X-AUSERNAME")))
-
 End Function
 Private Function funcPostTeamsFind(ByVal auth As String, ByVal baseUrl As String) As Long
 
@@ -488,7 +535,7 @@ http.setRequestHeader "X-Atlassian-Token", "no-check"
 http.setRequestHeader "Authorization", "Basic " & auth
 http.Send (JsonPost)
 
-PostTeamsFind = http.Status
+funcPostTeamsFind = http.Status
 
 If http.Status = 200 Then
 '    Debug.Print apicall
@@ -521,8 +568,6 @@ If http.Status = 200 Then
         Next Person
     End With
 End If
-
-Debug.Print (strDebug("PostTeamsFind", "", http.Status, http.getResponseHeader("X-AUSERNAME")))
 
 End Function
 
@@ -612,8 +657,6 @@ For Each rates In JSON("workRateData")("rates")
 Next rates
 
 DaysInSprint = DaysInSprint / 86400 / 1000
-
-Debug.Print (strDebug("GetSprintBurnDown", "rapidViewId: " & rapidViewId & " | SprintId = " & SprintId & " | RemainingSprintTime = " & CStr(RemainingSprintTime) & " | Days In Sprint = " & CStr(DaysInSprint), http.Status, http.getResponseHeader("X-AUSERNAME")))
 
 End Function
 
@@ -967,7 +1010,7 @@ Function funcScrumUnplannedWork()
 
 With ws_TeamStats
     .Range("BB23").Value = RemainingSprintTime
-    .Range("AD5").Value = TeamStats.jiratime(RemainingSprintTime)
+    .Range("AD5").Value = Jira.jiratime(RemainingSprintTime)
 End With
 
 End Function
@@ -1036,28 +1079,29 @@ End With
 
 End Function
 
-
 '' The following Functions are used by the apicalls above
-
-
 
 Private Function CleanSprintsAndCustomFields(FullJasonStr As String)
 ' This function replaces certain aspects of the default Jira Json result so that
 ' it is easier to work with
+   
+Dim strArr() As String
+Dim getOccuranceCount As Long
 
-Dim str As String
-Dim oIssue As Object
-Dim oIssueSprints As Object
-Dim oRE As Object
-Dim s, e As Long
+    strArr = Split(FullJasonStr, "com.atlassian.greenhopper.service.sprint.Sprint@")
+    getOccuranceCount = UBound(strArr)
 
-Set oRE = CreateObject("VBScript.RegExp")
-' replace the default sprint pattern
-With oRE
-    .Global = True
-    .Pattern = "com.atlassian.greenhopper.service.sprint.Sprint@[0-9a-zA-Z]+\["
-    FullJasonStr = .Replace(FullJasonStr, "[")
-End With
+Dim i As Long
+Dim Pos1 As Long
+Dim Pos2 As Long
+
+    For i = 1 To getOccuranceCount
+        Pos1 = InStr(1, FullJasonStr, "com.atlassian.greenhopper.service.sprint.Sprint@")
+
+        Pos2 = InStr(Pos1 + Len("com.atlassian.greenhopper.service.sprint.Sprint@"), FullJasonStr, "[")
+
+        FullJasonStr = Left(FullJasonStr, Pos1 - 1) & Right(FullJasonStr, Len(FullJasonStr) - Pos2)
+    Next i
 
 'rename the custom fields usiing the Public Constants in the PublicVariables module
 FullJasonStr = Replace(FullJasonStr, sprints, "sprints")
@@ -1069,8 +1113,6 @@ FullJasonStr = Replace(FullJasonStr, storypoints, "storypoints")
 FullJasonStr = Replace(FullJasonStr, """sprints""" & ":null", """sprints""" & ":[]")
 
 CleanSprintsAndCustomFields = FullJasonStr
-
-Set oRE = Nothing
 
 End Function
 
@@ -1107,66 +1149,7 @@ Private Function sprint_ParseString(ByVal sprint_String As String, sprint_Field 
     sprint_ParseString = Mid(sprint_String, StartPos, EndPos - StartPos)
 
 End Function
-Private Function strDebug(ByVal api As String, s As String, r As Integer, userName As String) As String
 
-'' This function records a log of all the api calls to a Log tab and returns a string for use with debugging
-
-' @param {String} api = name of the api call
-' @param {String} s = some description you want included in the debug text
-' @param {Integer} r = is the response status code i.e. 200
-' @param {String} userName = user that was authenticated for the api call
-
-' @write {ws_Log}
-' @return {String} string i.e. to be printed to the Immediate window
-''
-
-    Dim strLog As String
-    Dim c As Range
-    
-    strLog = Now() & ": " & api & ": " & userName & " | " & s & " | - " & r
-    Set c = ws_Log.Cells(ws_ProjectData.Rows.Count, "A").End(xlUp)
-    c.Offset(1, 0).Value = strLog
-    strDebug = strLog
-    
-End Function
-
-Private Function jiratime(ByVal timeseries As Double) As String
-
-'' This function converts a time in milliseconds (as used by Jira) into a string value of weeks, days and hours
-
-Dim h As Double
-Dim w As Double
-Dim d As Double
-
-h = WorksheetFunction.RoundDown(timeseries / 3600, 0)
-
-Select Case h
-    Case Is >= 40
-        w = WorksheetFunction.RoundDown(h / 40, 0)
-        d = WorksheetFunction.RoundDown((h Mod 40) / 8, 0)
-        h = h Mod 40 Mod 8
-        If d > 0 Then
-            If h > 0 Then
-                jiratime = w & "w " & d & "d " & h & "h"
-            Else
-                jiratime = w & "w " & d & "d "
-            End If
-        Else
-            jiratime = w & "w " & h & "h"
-        End If
-    Case Is >= 8
-        d = WorksheetFunction.RoundDown(h / 8, 0)
-        h = h Mod 8
-        If h > 0 Then
-            jiratime = d & "d " & h & "h"
-        Else
-            jiratime = d & "d "
-        End If
-    Case Else
-        jiratime = h & "h"
-        
-End Select
-End Function
 
 Private Function funcRAG()
 
