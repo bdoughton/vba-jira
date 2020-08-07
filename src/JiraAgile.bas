@@ -14,10 +14,7 @@ Attribute VB_Name = "JiraAgile"
 ' @license GNU General Public License v3.0 (https://opensource.org/licenses/GPL-3.0)
 '' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
 Option Explicit
-Public Const JiraBaseUrl As String = "http://localhost:8080/rest/"
-Public encodedAuth As String
-Public userName As String
-Public userPassword As String
+
 
 Sub GetJiraAgileBoard(control As IRibbonControl)
 
@@ -31,15 +28,10 @@ Application.Calculation = xlCalculationManual
     WebHelpers.EnableLogging = True
 '    WebHelpers.EnableLogging = False
     
-    'Check if a user is logged in and if not request userName and userPassword
-    'The MyCredentials API is forcing a system login so my custom form only
-    'shows and captures login details if the system login fails
-    'Do While GetJiraLoginResponse(userName, userPassword).StatusCode <> WebStatusCode.Ok
-        userName = InputBox("User Name:")
-        If userName = "" Then Exit Sub
-        userPassword = InputBox("Password:")
-        If userPassword = "" Then Exit Sub
-    'Loop
+    'Check if a user is logged in and if not perform login, if login fails exit
+    If Not IsLoggedIn Then
+        If Not LoginUser Then Exit Sub
+    End If
     
     If MsgBox("This will replace the data in the current sheet!", vbOKCancel, "Import Jira Board") = vbOK Then
         ActiveSheet.Cells.Clear
@@ -138,7 +130,7 @@ If agileBoardResponse.StatusCode = WebStatusCode.Ok Then
     
     swimlaneCount = agileBoardResponse.Data("swimlanesConfig")("swimlanes").Count
     
-    ReDim swimlaneQueries(1 To swimlaneCount - 1)
+    ReDim swimlaneQueries(1 To swimlaneCount - 1) ' Causes an error if there is only one swimlane
     
     If swimlaneCount > 1 Then
         For c = 1 To swimlaneCount - 1 '' -1: don't include the default query
@@ -248,34 +240,4 @@ Else
 End If
 
 End Sub
-
-
-Function GetJiraLoginResponse(ByVal name As String, ByVal password As String) As WebResponse
-   
-    Dim JiraClient As New WebClient
-    JiraClient.baseUrl = JiraBaseUrl
-    
-    'Setup Authentication
-    Dim JiraAuth As New HttpBasicAuthenticator
-    JiraAuth.Setup _
-        userName:=name, _
-        password:=password
-    
-    Set JiraClient.Authenticator = JiraAuth
-    
-    ' Create a WebRequest to get the logged in user's details
-    Dim LoginRequest As New WebRequest
-    LoginRequest.Resource = "api/2/myself"
-    LoginRequest.Method = WebMethod.HttpGet
-
-    ' Set the request format
-    ' -> Sets content-type and accept headers and parses the response
-    LoginRequest.ContentType = "application/json;charset=UTF-8"
-
-    ' Execute the request and work with the response
-    Set GetJiraLoginResponse = JiraClient.Execute(LoginRequest)
-
-'    Debug.Print GetJiraLoginResponse.Headers
-    
-End Function
 

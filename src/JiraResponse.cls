@@ -11,18 +11,6 @@ Attribute VB_Exposed = False
 ' JiraResponse v1
 ' (c) Ben Doughton - https://github.com/bdoughton/vba-jira
 '
-' Usage:
-' ```VB.net
-' Dim Response As WebResponse
-' Set Response = Client.Execute(Request)
-'
-' If Response.StatusCode = WebStatusCode.Ok Then
-'   ' Response.Headers, Response.Cookies
-'   ' Response.Data -> Parsed Response.Content based on Request.ResponseFormat
-'   ' Response.Body -> Raw response bytes
-' Else
-'   Debug.Print "Error: " & Response.StatusCode & " - " & Response.Content
-' End If
 ' ```
 '
 '

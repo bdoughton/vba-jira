@@ -112,7 +112,7 @@ Private Function funcRollStats(ByVal Enabled As Boolean)
 
 If Enabled Then
     With ws_TeamStats
-        .Range("AW22:BA44").value = .Range("AX22:BB44").value
+        .Range("AW22:BA44").Value = .Range("AX22:BB44").Value
     End With
 End If
 
@@ -202,15 +202,15 @@ If http.Status = 200 Then
         h = 1 'reset the change history to 1
         If CDate(JSON("issues")(i)("fields")("fixVersions")(1)("releaseDate")) >= DateAdd("m", -3, "01/" & Month(Now()) & "/" & Year(Now())) Then 'Only include if the release date was in the last 3 months
             With ws_LeadTimeData
-                .Cells(r, 1).value = JSON("issues")(i)("id")
-                .Cells(r, 2).value = JSON("issues")(i)("key")
-                .Cells(r, 3).value = JSON("issues")(i)("fields")("issuetype")("name")
-                .Cells(r, 4).value = JSON("issues")(i)("fields")("created")
-                .Cells(r, 5).value = sprint_ParseString(JSON("issues")(i)("fields")("sprints")(1), "startDate")
+                .Cells(r, 1).Value = JSON("issues")(i)("id")
+                .Cells(r, 2).Value = JSON("issues")(i)("key")
+                .Cells(r, 3).Value = JSON("issues")(i)("fields")("issuetype")("name")
+                .Cells(r, 4).Value = JSON("issues")(i)("fields")("created")
+                .Cells(r, 5).Value = sprint_ParseString(JSON("issues")(i)("fields")("sprints")(1), "startDate")
                 If JSON("issues")(i)("fields")("fixVersions")(1)("releaseDate") > JSON("issues")(i)("fields")("created") Then
-                    .Cells(r, 6).value = JSON("issues")(i)("fields")("fixVersions")(1)("releaseDate") 'Always use the 1st fixVersion, even if there are multiple
+                    .Cells(r, 6).Value = JSON("issues")(i)("fields")("fixVersions")(1)("releaseDate") 'Always use the 1st fixVersion, even if there are multiple
                 Else
-                    .Cells(r, 6).value = Left(JSON("issues")(i)("fields")("resolutiondate"), 10) 'use the resolution date if there is no fixVersion. Note: this can lead to incorrect deployment frequency
+                    .Cells(r, 6).Value = Left(JSON("issues")(i)("fields")("resolutiondate"), 10) 'use the resolution date if there is no fixVersion. Note: this can lead to incorrect deployment frequency
                     
                 End If
                 For Each history In JSON("issues")(i)("changelog")("histories")
@@ -219,22 +219,22 @@ If http.Status = 200 Then
                         If JSON("issues")(i)("changelog")("histories")(h)("items")(c)("field") = "status" Then
                             Select Case JSON("issues")(i)("changelog")("histories")(h)("items")(c)("toString")
                                 Case inProgressState 'enter the date the issue transitioned to its inProgressState
-                                    ws_WiPData.Cells(WiPRow, 1).value = JSON("issues")(i)("id")
-                                    ws_WiPData.Cells(WiPRow, 2).value = JSON("issues")(i)("key")
-                                    ws_WiPData.Cells(WiPRow, 3).value = JSON("issues")(i)("fields")("issuetype")("name")
+                                    ws_WiPData.Cells(WiPRow, 1).Value = JSON("issues")(i)("id")
+                                    ws_WiPData.Cells(WiPRow, 2).Value = JSON("issues")(i)("key")
+                                    ws_WiPData.Cells(WiPRow, 3).Value = JSON("issues")(i)("fields")("issuetype")("name")
                                     For Each fixversion In JSON("issues")(i)("fields")("fixVersions")
-                                        ws_WiPData.Cells(WiPRow, 6).value = JSON("issues")(i)("fields")("fixVersions")(1)("releaseDate")  'Always use the 1st fixVersion, even if there are multiple
+                                        ws_WiPData.Cells(WiPRow, 6).Value = JSON("issues")(i)("fields")("fixVersions")(1)("releaseDate")  'Always use the 1st fixVersion, even if there are multiple
                                     Next
-                                    ws_WiPData.Cells(WiPRow, 4).value = JSON("issues")(i)("changelog")("histories")(h)("created")
+                                    ws_WiPData.Cells(WiPRow, 4).Value = JSON("issues")(i)("changelog")("histories")(h)("created")
                                 Case endProgressState 'enter the date the issue transitioned to its endProgressState
-                                    ws_WiPData.Cells(WiPRow, 5).value = JSON("issues")(i)("changelog")("histories")(h)("created")
+                                    ws_WiPData.Cells(WiPRow, 5).Value = JSON("issues")(i)("changelog")("histories")(h)("created")
                                     WiPRow = WiPRow + 1
                             End Select
                         ElseIf JSON("issues")(i)("changelog")("histories")(h)("items")(c)("field") = "timespent" Then
                             dictResourceNm(JSON("issues")(i)("changelog")("histories")(h)("author")("key")) = Val(JSON("issues")(i)("changelog")("histories")(h)("items")(c)("toString"))
                             Set rng_author = ws_LeadTimeData.Rows(1).Find(JSON("issues")(i)("changelog")("histories")(h)("author")("key"), LookIn:=xlValues, LookAt:=xlWhole)
                             If rng_author Is Nothing Then
-                                ws_LeadTimeData.Range("A1").End(xlToRight).Offset(0, 1).value = JSON("issues")(i)("changelog")("histories")(h)("author")("key")
+                                ws_LeadTimeData.Range("A1").End(xlToRight).Offset(0, 1).Value = JSON("issues")(i)("changelog")("histories")(h)("author")("key")
                             End If
                         End If
                         c = c + 1
@@ -253,7 +253,7 @@ If http.Status = 200 Then
     For Each rng_Parent In ws_LeadTimeData.Range("B2:B" & ws_LeadTimeData.Range("A1").End(xlDown).Row)
         apicall = _
         baseUrl & "rest/api/latest/search?jql=" _
-        & "Parent = " & rng_Parent.value _
+        & "Parent = " & rng_Parent.Value _
         & "&fields=" _
             & "key," _
             & "issuetype," _
@@ -282,17 +282,17 @@ If http.Status = 200 Then
                         If JSON("issues")(i)("changelog")("histories")(h)("items")(c)("field") = "timespent" Then
                             Set rng_author = ws_LeadTimeData.Rows(1).Find(JSON("issues")(i)("changelog")("histories")(h)("author")("key"), LookIn:=xlValues, LookAt:=xlWhole)
                             If rng_author Is Nothing Then
-                                ws_LeadTimeData.Range("A1").End(xlToRight).Offset(0, 1).value = JSON("issues")(i)("changelog")("histories")(h)("author")("key")
+                                ws_LeadTimeData.Range("A1").End(xlToRight).Offset(0, 1).Value = JSON("issues")(i)("changelog")("histories")(h)("author")("key")
                             End If
                             'set the new value for the story to be the old value for the story + the new value for the sub-task - the old value for the sub task
                             If Not JSON("issues")(i)("changelog")("histories")(h)("items")(c)("fromString") = "" Then
-                                collIssueKey(rng_Parent.value)(JSON("issues")(i)("changelog")("histories")(h)("author")("key")) = _
-                                    collIssueKey(rng_Parent.value)(JSON("issues")(i)("changelog")("histories")(h)("author")("key")) _
+                                collIssueKey(rng_Parent.Value)(JSON("issues")(i)("changelog")("histories")(h)("author")("key")) = _
+                                    collIssueKey(rng_Parent.Value)(JSON("issues")(i)("changelog")("histories")(h)("author")("key")) _
                                     + Val(JSON("issues")(i)("changelog")("histories")(h)("items")(c)("toString")) _
                                     - Val(JSON("issues")(i)("changelog")("histories")(h)("items")(c)("fromString"))
                             Else
-                                collIssueKey(rng_Parent.value)(JSON("issues")(i)("changelog")("histories")(h)("author")("key")) = _
-                                    collIssueKey(rng_Parent.value)(JSON("issues")(i)("changelog")("histories")(h)("author")("key")) _
+                                collIssueKey(rng_Parent.Value)(JSON("issues")(i)("changelog")("histories")(h)("author")("key")) = _
+                                    collIssueKey(rng_Parent.Value)(JSON("issues")(i)("changelog")("histories")(h)("author")("key")) _
                                     + Val(JSON("issues")(i)("changelog")("histories")(h)("items")(c)("toString"))
                             End If
                         End If
@@ -305,12 +305,12 @@ If http.Status = 200 Then
         Next
         '' Totals
         For Each rng_author In ws_LeadTimeData.Range(Cells(1, 9), Cells(1, ws_LeadTimeData.Range("A1").End(xlToRight).Column))
-            ws_LeadTimeData.Cells(rng_Parent.Row, rng_author.Column) = collIssueKey(rng_Parent.value)(rng_author.value)
+            ws_LeadTimeData.Cells(rng_Parent.Row, rng_author.Column) = collIssueKey(rng_Parent.Value)(rng_author.Value)
         Next rng_author
         
         col = ws_LeadTimeData.Range("A1").End(xlToRight).Column
-        rng_Parent.Offset(0, 5).value = Application.WorksheetFunction.Sum(Range(Cells(rng_Parent.Row, 9), Cells(rng_Parent.Row, col)))
-        rng_Parent.Offset(0, 6).value = PublicVariables.jiratime(rng_Parent.Offset(0, 5).value)
+        rng_Parent.Offset(0, 5).Value = Application.WorksheetFunction.Sum(Range(Cells(rng_Parent.Row, 9), Cells(rng_Parent.Row, col)))
+        rng_Parent.Offset(0, 6).Value = PublicVariables.jiratime(rng_Parent.Offset(0, 5).Value)
     Next rng_Parent
 End If
 
@@ -378,20 +378,20 @@ If http.Status = 200 Then
     i = 1 'reset the issue to 1
     For Each Item In JSON("issues")
         With ws_IncompleteIssuesData
-            .Cells(r, 1).value = JSON("issues")(i)("id")
-            .Cells(r, 2).value = JSON("issues")(i)("key")
-            .Cells(r, 3).value = JSON("issues")(i)("fields")("issuetype")("name")
-            .Cells(r, 4).value = JSON("issues")(i)("fields")("project")("key")
-            .Cells(r, 5).value = JSON("issues")(i)("fields")("epiclink")
-            .Cells(r, 6).value = JSON("issues")(i)("fields")("storypoints")
-            .Cells(r, 7).value = JSON("issues")(i)("fields")("status")("name")
-            .Cells(r, 8).value = JSON("issues")(i)("fields")("status")("statusCategory")("name")
-            .Cells(r, 9).value = JSON("issues")(i)("fields")("aggregatetimeestimate")
+            .Cells(r, 1).Value = JSON("issues")(i)("id")
+            .Cells(r, 2).Value = JSON("issues")(i)("key")
+            .Cells(r, 3).Value = JSON("issues")(i)("fields")("issuetype")("name")
+            .Cells(r, 4).Value = JSON("issues")(i)("fields")("project")("key")
+            .Cells(r, 5).Value = JSON("issues")(i)("fields")("epiclink")
+            .Cells(r, 6).Value = JSON("issues")(i)("fields")("storypoints")
+            .Cells(r, 7).Value = JSON("issues")(i)("fields")("status")("name")
+            .Cells(r, 8).Value = JSON("issues")(i)("fields")("status")("statusCategory")("name")
+            .Cells(r, 9).Value = JSON("issues")(i)("fields")("aggregatetimeestimate")
             If JSON("issues")(i)("fields")("sprints").Count > 0 Then
                 s = JSON("issues")(i)("fields")("sprints").Count
-                .Cells(r, 10).value = sprint_ParseString(JSON("issues")(i)("fields")("sprints")(s), "state") 'Find the last sprint's state
+                .Cells(r, 10).Value = sprint_ParseString(JSON("issues")(i)("fields")("sprints")(s), "state") 'Find the last sprint's state
             Else
-                .Cells(r, 10).value = "BACKLOG"
+                .Cells(r, 10).Value = "BACKLOG"
             End If
         End With
         i = i + 1 'increment the issue
@@ -443,11 +443,11 @@ If http.Status = 200 Then
     s = 1
     For Each Item In JSON("sprints")
         With ws_VelocityData
-            .Cells(r, 1).value = JSON("sprints")(s)("id") ' SprintId
-            .Cells(r, 2).value = JSON("sprints")(s)("name") 'SprintName
-            .Cells(r, 3).value = JSON("sprints")(s)("state") 'SprintState
-            .Cells(r, 4).value = JSON("velocityStatEntries")(CStr(.Cells(r, 1).value))("estimated")("value") 'Commitment
-            .Cells(r, 5).value = JSON("velocityStatEntries")(CStr(.Cells(r, 1).value))("completed")("value") 'Completed
+            .Cells(r, 1).Value = JSON("sprints")(s)("id") ' SprintId
+            .Cells(r, 2).Value = JSON("sprints")(s)("name") 'SprintName
+            .Cells(r, 3).Value = JSON("sprints")(s)("state") 'SprintState
+            .Cells(r, 4).Value = JSON("velocityStatEntries")(CStr(.Cells(r, 1).Value))("estimated")("value") 'Commitment
+            .Cells(r, 5).Value = JSON("velocityStatEntries")(CStr(.Cells(r, 1).Value))("completed")("value") 'Completed
         End With
         r = r + 1
         s = s + 1
@@ -502,10 +502,10 @@ If http.Status = 200 Then
         For Each Team In JSON("teams")
             p = 1
             For Each Resource In JSON("teams")(t)("resources")
-                .Cells(r, 1).value = JSON("teams")(t)("id")
-                .Cells(r, 2).value = JSON("teams")(t)("title")
-                .Cells(r, 3).value = JSON("teams")(t)("resources")(p)("id")
-                .Cells(r, 4).value = JSON("teams")(t)("resources")(p)("personId")
+                .Cells(r, 1).Value = JSON("teams")(t)("id")
+                .Cells(r, 2).Value = JSON("teams")(t)("title")
+                .Cells(r, 3).Value = JSON("teams")(t)("resources")(p)("id")
+                .Cells(r, 4).Value = JSON("teams")(t)("resources")(p)("personId")
                 p = p + 1
                 r = r + 1
             Next Resource
@@ -514,8 +514,8 @@ If http.Status = 200 Then
         r = 2
         p = 1
         For Each Person In JSON("persons")
-            .Cells(r, 5).value = JSON("persons")(p)("personId")
-            .Cells(r, 6).value = JSON("persons")(p)("jiraUser")("jiraUsername")
+            .Cells(r, 5).Value = JSON("persons")(p)("personId")
+            .Cells(r, 6).Value = JSON("persons")(p)("jiraUser")("jiraUsername")
             p = p + 1
             r = r + 1
         Next Person
@@ -565,9 +565,9 @@ If http.Status = 200 Then
     
     With ws_Work
         .Cells.ClearContents
-        .Cells(1, 1).value = "Key"
-        .Cells(1, 2).value = "rapidViewId"
-        .Cells(1, 3).value = "timeSpent"
+        .Cells(1, 1).Value = "Key"
+        .Cells(1, 2).Value = "rapidViewId"
+        .Cells(1, 3).Value = "timeSpent"
     End With
 
     Set JSON = ParseJson(http.responseText)
@@ -590,9 +590,9 @@ If http.Status = 200 Then
                     If Val(time) > JSON("startTime") Then
                         If JSON("changes")(time)(c)("timeC").Exists("timeSpent") Then
                             With ws_Work.Range("A1048576").End(xlUp)
-                                .Offset(1).value = JSON("changes")(time)(c)("key")
-                                .Offset(1, 1).value = rapidViewId
-                                .Offset(1, 2).value = JSON("changes")(time)(c)("timeC")("timeSpent")
+                                .Offset(1).Value = JSON("changes")(time)(c)("key")
+                                .Offset(1, 1).Value = rapidViewId
+                                .Offset(1, 2).Value = JSON("changes")(time)(c)("timeC")("timeSpent")
                             End With
                         End If
                     End If
@@ -652,8 +652,8 @@ TShirtEstimate = Excel.WorksheetFunction.SumIfs(ws_IncompleteIssuesData.Range("F
                     / Excel.WorksheetFunction.Average(ws_VelocityData.Range("E:E"))
 
 With ws_TeamStats
-    .Range("BB25").value = Round(StoryPointEstimate, 0)
-    .Range("J10").value = CStr(Round(SubTaskEstimate, 0)) & "/" & CStr(Round(StoryPointEstimate, 0)) & "/" & CStr(Round(TShirtEstimate, 0))
+    .Range("BB25").Value = Round(StoryPointEstimate, 0)
+    .Range("J10").Value = CStr(Round(SubTaskEstimate, 0)) & "/" & CStr(Round(StoryPointEstimate, 0)) & "/" & CStr(Round(TShirtEstimate, 0))
 End With
 
 End Function
@@ -669,8 +669,8 @@ Function funcPredictabilityVelocity()
 'Sprint Velocity calculated as _
     = Completed / Committed for the most recent sprint
 With ws_TeamStats
-    .Range("BB26").value = ws_VelocityData.Range("E2").value / ws_VelocityData.Range("D2").value
-    .Range("S10").value = ws_VelocityData.Range("E2").value / ws_VelocityData.Range("D2").value
+    .Range("BB26").Value = ws_VelocityData.Range("E2").Value / ws_VelocityData.Range("D2").Value
+    .Range("S10").Value = ws_VelocityData.Range("E2").Value / ws_VelocityData.Range("D2").Value
 End With
 
 End Function
@@ -696,8 +696,8 @@ TipRow = ws_LeadTimeData.Cells(1, TiPCol).End(xlDown).Row
 Set rng = ws_LeadTimeData.Range(Cells(2, TiPCol), Cells(TipRow, TiPCol))
 
 With ws_TeamStats
-    .Range("BB27").value = Excel.WorksheetFunction.StDev_P(rng) / Excel.WorksheetFunction.Average(rng)
-    .Range("J16").value = Excel.WorksheetFunction.StDev_P(rng) / Excel.WorksheetFunction.Average(rng)
+    .Range("BB27").Value = Excel.WorksheetFunction.StDev_P(rng) / Excel.WorksheetFunction.Average(rng)
+    .Range("J16").Value = Excel.WorksheetFunction.StDev_P(rng) / Excel.WorksheetFunction.Average(rng)
 End With
 
 End Function
@@ -712,8 +712,8 @@ Function funcPredictabilitySprintOutputVariability()
 ''
 
 With ws_TeamStats
-    .Range("BB28").value = Excel.WorksheetFunction.StDev_P(ws_VelocityData.Range("E2:E8")) / Excel.WorksheetFunction.Average(ws_VelocityData.Range("E2:E8"))
-    .Range("S16").value = Excel.WorksheetFunction.StDev_P(ws_VelocityData.Range("E2:E8")) / Excel.WorksheetFunction.Average(ws_VelocityData.Range("E2:E8"))
+    .Range("BB28").Value = Excel.WorksheetFunction.StDev_P(ws_VelocityData.Range("E2:E8")) / Excel.WorksheetFunction.Average(ws_VelocityData.Range("E2:E8"))
+    .Range("S16").Value = Excel.WorksheetFunction.StDev_P(ws_VelocityData.Range("E2:E8")) / Excel.WorksheetFunction.Average(ws_VelocityData.Range("E2:E8"))
 End With
 
 End Function
@@ -734,20 +734,20 @@ Dim c As Range
 With ws_LeadTimeData
 
     col = .Range("A1").End(xlToRight).Column + 1
-    .Cells(1, col).value = "leadTime"
+    .Cells(1, col).Value = "leadTime"
 
     Set rng_LeadTime = .Range(Cells(2, col), Cells(.Range("A1").End(xlDown).Row, col))
 
     For Each c In rng_LeadTime
-        c.value = CDate(.Cells(c.Row, 6).value) - CDate(Left(.Cells(c.Row, 4).value, 10))
+        c.Value = CDate(.Cells(c.Row, 6).Value) - CDate(Left(.Cells(c.Row, 4).Value, 10))
     Next c
     
 End With
 
 
 With ws_TeamStats
-    .Range("BB30").value = Excel.WorksheetFunction.Average(rng_LeadTime)
-    .Range("AD10").value = Round(Excel.WorksheetFunction.Average(rng_LeadTime), 0)
+    .Range("BB30").Value = Excel.WorksheetFunction.Average(rng_LeadTime)
+    .Range("AD10").Value = Round(Excel.WorksheetFunction.Average(rng_LeadTime), 0)
 End With
 
 End Function
@@ -770,18 +770,18 @@ Dim cell As Range
 Set dict = New Dictionary
         
 For Each cell In ws_LeadTimeData.Range(Cells(2, 6), Cells(ws_LeadTimeData.Range("F1").End(xlDown).Row, 6))
-    If cell.value >= DateAdd("m", -1, "01/" & Month(Now()) & "/" & Year(Now())) Then ' only count if after start of previous month
-        If cell.value < CDate("01/" & Month(Now()) & "/" & Year(Now())) Then ' only count if before start of current month
-            If Not dict.Exists(cell.value) Then
-                dict.Add cell.value, 0
+    If cell.Value >= DateAdd("m", -1, "01/" & Month(Now()) & "/" & Year(Now())) Then ' only count if after start of previous month
+        If cell.Value < CDate("01/" & Month(Now()) & "/" & Year(Now())) Then ' only count if before start of current month
+            If Not dict.Exists(cell.Value) Then
+                dict.Add cell.Value, 0
             End If
         End If
     End If
 Next
 
 With ws_TeamStats
-    .Range("BB31").value = dict.Count
-    .Range("AM10").value = dict.Count
+    .Range("BB31").Value = dict.Count
+    .Range("AM10").Value = dict.Count
 End With
 
 End Function
@@ -802,20 +802,20 @@ Dim c As Range
 With ws_LeadTimeData
 
     col = .Range("A1").End(xlToRight).Column + 1
-    .Cells(1, col).value = "TiP"
+    .Cells(1, col).Value = "TiP"
 
     Set rng_TiP = .Range(Cells(2, col), Cells(.Range("A1").End(xlDown).Row, col))
 
     For Each c In rng_TiP
-        c.value = CDate(.Cells(c.Row, 6).value) - CDate(Left(.Cells(c.Row, 5).value, 10))
+        c.Value = CDate(.Cells(c.Row, 6).Value) - CDate(Left(.Cells(c.Row, 5).Value, 10))
     Next c
     
 End With
 
 
 With ws_TeamStats
-    .Range("BB32").value = Excel.WorksheetFunction.Average(rng_TiP)
-    .Range("AD16").value = Round(Excel.WorksheetFunction.Average(rng_TiP), 0)
+    .Range("BB32").Value = Excel.WorksheetFunction.Average(rng_TiP)
+    .Range("AD16").Value = Round(Excel.WorksheetFunction.Average(rng_TiP), 0)
 End With
 
 End Function
@@ -830,8 +830,8 @@ Function funcResponsivenessWiP()
 ''
 
 With ws_TeamStats
-    .Range("BB33").value = 0 ' Forumla to be updated
-    .Range("AM16").value = 0 ' Forumla to be updated
+    .Range("BB33").Value = 0 ' Forumla to be updated
+    .Range("AM16").Value = 0 ' Forumla to be updated
 End With
 
 End Function
@@ -844,17 +844,17 @@ Function funcProductivityReleaseVelocity()
 ''
 
 With ws_TeamStats
-    .Range("AT5").value = 0 ' Forumla to be updated - Feature Velocity
-    .Range("AU5").value = 0 ' Forumla to be updated - Defects Velocity
-    .Range("AV5").value = 0 ' Forumla to be updated - Risks Velocity
-    .Range("AW5").value = 0 ' Forumla to be updated - Debts Velocity
-    .Range("AX5").value = 0 ' Forumla to be updated - Enablers Velocity
+    .Range("AT5").Value = 0 ' Forumla to be updated - Feature Velocity
+    .Range("AU5").Value = 0 ' Forumla to be updated - Defects Velocity
+    .Range("AV5").Value = 0 ' Forumla to be updated - Risks Velocity
+    .Range("AW5").Value = 0 ' Forumla to be updated - Debts Velocity
+    .Range("AX5").Value = 0 ' Forumla to be updated - Enablers Velocity
     
-    .Range("AT6").value = 0 ' Forumla to be updated - Feature Baseline
-    .Range("AU6").value = 0 ' Forumla to be updated - Defects Baseline
-    .Range("AV6").value = 0 ' Forumla to be updated - Risks Baseline
-    .Range("AW6").value = 0 ' Forumla to be updated - Debts Baseline
-    .Range("AX6").value = 0 ' Forumla to be updated - Enablers Baseline
+    .Range("AT6").Value = 0 ' Forumla to be updated - Feature Baseline
+    .Range("AU6").Value = 0 ' Forumla to be updated - Defects Baseline
+    .Range("AV6").Value = 0 ' Forumla to be updated - Risks Baseline
+    .Range("AW6").Value = 0 ' Forumla to be updated - Debts Baseline
+    .Range("AX6").Value = 0 ' Forumla to be updated - Enablers Baseline
 End With
 
 End Function
@@ -869,8 +869,8 @@ Function funcProductivityEfficiency()
 ''
 
 With ws_TeamStats
-    .Range("BB35").value = 0 ' Forumla to be updated
-    .Range("AB24").value = 0 ' Forumla to be updated
+    .Range("BB35").Value = 0 ' Forumla to be updated
+    .Range("AB24").Value = 0 ' Forumla to be updated
 End With
 
 End Function
@@ -886,8 +886,8 @@ Function funcProductivityDistribution()
 
 
 With ws_TeamStats
-    .Range("AT11:BF15").value = 0 ' Forumla to be updated - Data
-    .Range("AT16:BE16").value = "Date" ' Formula to be updated - Release Months
+    .Range("AT11:BF15").Value = 0 ' Forumla to be updated - Data
+    .Range("AT16:BE16").Value = "Date" ' Formula to be updated - Release Months
 End With
 
 End Function
@@ -902,8 +902,8 @@ Function funcQualityTimeToResolve()
 ''
 
 With ws_TeamStats
-    .Range("BB37").value = 0 ' Forumla to be updated
-    .Range("AM24").value = 0 ' Forumla to be updated
+    .Range("BB37").Value = 0 ' Forumla to be updated
+    .Range("AM24").Value = 0 ' Forumla to be updated
 End With
 
 End Function
@@ -918,8 +918,8 @@ Function funcQualityDefectDentisy()
 ''
 
 With ws_TeamStats
-    .Range("BB38").value = "TBC" ' Forumla to be updated
-    .Range("AM30").value = "TBC" ' Forumla to be updated
+    .Range("BB38").Value = "TBC" ' Forumla to be updated
+    .Range("AM30").Value = "TBC" ' Forumla to be updated
 End With
 
 End Function
@@ -934,8 +934,8 @@ Function funcQualityFailRate()
 ''
 
 With ws_TeamStats
-    .Range("BB39").value = "TBC" ' Forumla to be updated
-    .Range("AM36").value = "TBC" ' Forumla to be updated
+    .Range("BB39").Value = "TBC" ' Forumla to be updated
+    .Range("AM36").Value = "TBC" ' Forumla to be updated
 End With
 
 End Function
@@ -950,8 +950,8 @@ Function funcScrumTeamStability()
 ''
 
 With ws_TeamStats
-    .Range("BB22").value = 0 ' Forumla to be updated
-    .Range("J5").value = 0 ' Forumla to be updated
+    .Range("BB22").Value = 0 ' Forumla to be updated
+    .Range("J5").Value = 0 ' Forumla to be updated
 End With
 
 End Function
@@ -966,8 +966,8 @@ Function funcScrumUnplannedWork()
 ''
 
 With ws_TeamStats
-    .Range("BB23").value = RemainingSprintTime
-    .Range("AD5").value = TeamStats.jiratime(RemainingSprintTime)
+    .Range("BB23").Value = RemainingSprintTime
+    .Range("AD5").Value = TeamStats.jiratime(RemainingSprintTime)
 End With
 
 End Function
@@ -982,8 +982,8 @@ Function funcJiraAdminCorrectStatus()
 ''
 
 With ws_TeamStats
-    .Range("BB41").value = 0 ' Forumla to be updated
-    .Range("J43").value = 0 ' Forumla to be updated
+    .Range("BB41").Value = 0 ' Forumla to be updated
+    .Range("J43").Value = 0 ' Forumla to be updated
 End With
 
 End Function
@@ -998,8 +998,8 @@ Function funcJiraAdminCorrectEpicLink()
 ''
 
 With ws_TeamStats
-    .Range("BB42").value = 0 ' Forumla to be updated
-    .Range("T43").value = 0 ' Forumla to be updated
+    .Range("BB42").Value = 0 ' Forumla to be updated
+    .Range("T43").Value = 0 ' Forumla to be updated
 End With
 
 End Function
@@ -1014,8 +1014,8 @@ Function funcJiraAdminDoneInSprint()
 ''
 
 With ws_TeamStats
-    .Range("BB43").value = "TBC" ' Forumla to be updated
-    .Range("AC43").value = "TBC" ' Forumla to be updated
+    .Range("BB43").Value = "TBC" ' Forumla to be updated
+    .Range("AC43").Value = "TBC" ' Forumla to be updated
 End With
 
 End Function
@@ -1030,8 +1030,8 @@ Function funcJiraAdminActiveTime()
 ''
 
 With ws_TeamStats
-    .Range("BB41").value = 0 ' Forumla to be updated
-    .Range("J43").value = 0 ' Forumla to be updated
+    .Range("BB41").Value = 0 ' Forumla to be updated
+    .Range("J43").Value = 0 ' Forumla to be updated
 End With
 
 End Function
@@ -1125,7 +1125,7 @@ Private Function strDebug(ByVal api As String, s As String, r As Integer, userNa
     
     strLog = Now() & ": " & api & ": " & userName & " | " & s & " | - " & r
     Set c = ws_Log.Cells(ws_ProjectData.Rows.Count, "A").End(xlUp)
-    c.Offset(1, 0).value = strLog
+    c.Offset(1, 0).Value = strLog
     strDebug = strLog
     
 End Function
