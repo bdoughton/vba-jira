@@ -6,8 +6,13 @@ Attribute VB_Name = "JiraScrumTeamStats"
 ' JIRA Scrum Team Stats VBA
 '
 ' @Dependencies:
-'               Mod - Base64Encoding
-'               Mod - JsonConverter
+'               Mod - WebHelpers
+'               Mod - Jira
+'               Class - JiraResponse
+'               Class - WebRequest
+'               Class - WebResponse
+'               Class - WebClient
+'               Class - Dictionary
 '
 ' Note: This is designed to be a standalone module for TeamStats so if there are other modules
 '       from the same family of Jira apicalls there could be duplication of code
@@ -176,11 +181,11 @@ Private Function funcGet3MonthsOfDoneJiras(ByVal boardJql As String, ByVal inPro
 ' Then cycle through and get the sub-tasks for all the issues from the first api call
 
 '
-' @param {String} auth, baseUrl, boardJql, inProgressState, endProgressState
+' @param {String} boardJql, inProgressState, endProgressState
 ' @param {Integer} startAtVal, r
 ' @write {ws_LeadTimeData} & {ws_WiPData}
 ' @apicalls 1x{get search standardissuetypes} ?x{get search subtaskissuetypes}
-' @return {Long} status of first apicall
+' @return {WebStatusCode} status of first apicall
 ''
 
 '' Known limitations with this macro:
@@ -364,18 +369,17 @@ If funcGet3MonthsOfDoneJiras = Ok Then
 End If
 
 End Function
-Private Function funcGetIncompleteJiras(ByVal auth As String, ByVal baseUrl As String, _
-            ByVal boardJql As String, ByRef startAtVal, r As Integer) As Long
+Private Function funcGetIncompleteJiras(ByVal boardJql As String, ByRef startAtVal, r As Integer) As WebStatusCode
 
 ''
 ' Source Jiras that are not in a done state and not subTasks
 
 '
-' @param {String} auth, baseUrl, boardJql
+' @param {String} boardJql
 ' @param {Integer} startAtVal, r
 ' @write {ws_IncompleteIssuesData}
 ' @apicalls 1x{get search standardissuetypes}
-' @return {Long} status of apicall
+' @return {WebStatusCode} status of apicall
 ''
 
 '' Known limitations with this macro:
@@ -383,62 +387,60 @@ Private Function funcGetIncompleteJiras(ByVal auth As String, ByVal baseUrl As S
 ' (2) worksheet is not scrubbed (clear contents) the first time the macro is called
 ' (3) worksheet has to exist (with headings) for the macro to run
 
-Dim apicall As String
 Dim jql As String
-Dim http, JSON, Item, sprint As Object
-Dim CleanJSON As String
-Dim i, s As Integer
-
 jql = "statusCategory not in (Done) AND " & _
         "issuetype not in subTaskIssueTypes() AND " & _
         boardJql
-
-apicall = _
-    baseUrl & "rest/api/latest/search?jql=" _
-    & jql _
-    & "&fields=" _
-        & "key," _
+        
+Dim apiFields As String
+apiFields = "key," _
         & "issuetype," _
         & "project," _
         & "status," _
         & epiclink & "," _
         & storypoints & "," _
         & "aggregatetimeestimate," _
-        & sprints & "," _
-        & "&startAt=" _
-        & 0 _
-    & "&maxResults=1000"
+        & sprints
             
-Debug.Print apicall
-Set http = CreateObject("MSXML2.XMLHTTP")
+'Define the new Request
+Dim JQL_PBI_Request As New WebRequest
+With JQL_PBI_Request
+    .Resource = "api/2/search"
+    .Method = WebMethod.HttpGet
+    .AddQuerystringParam "jql", jql
+    .AddQuerystringParam "fields", apiFields
+    .AddQuerystringParam "startAt", startAtVal
+    .AddQuerystringParam "maxResults", "1000"
+    .AddQuerystringParam "expand", "changelog"
+End With
+            
+Dim JQL_PBI_Search_Response As New JiraResponse
+Dim JQL_Search_Response As New WebResponse
 
-http.Open "GET", apicall, False
-http.setRequestHeader "Content-Type", "application/json"
-http.setRequestHeader "X-Atlassian-Token", "no-check"
-http.setRequestHeader "Authorization", "Basic " & auth
-http.Send
+Set JQL_Search_Response = JQL_PBI_Search_Response.JiraCall(JQL_PBI_Request)
 
-funcGetIncompleteJiras = http.Status
+funcGetIncompleteJiras = JQL_Search_Response.StatusCode
 
-If http.Status = 200 Then
-    CleanJSON = CleanSprintsAndCustomFields(http.responseText)
-    Set JSON = ParseJson(CleanJSON)
+Dim i%, s As Integer
+Dim Item As Object
+
+If funcGetIncompleteJiras = Ok Then
     startAtVal = startAtVal + 1000 'Increment the next start position based on maxResults above
     i = 1 'reset the issue to 1
-    For Each Item In JSON("issues")
+    For Each Item In JQL_Search_Response.Data("issues")
         With ws_IncompleteIssuesData
-            .Cells(r, 1).Value = JSON("issues")(i)("id")
-            .Cells(r, 2).Value = JSON("issues")(i)("key")
-            .Cells(r, 3).Value = JSON("issues")(i)("fields")("issuetype")("name")
-            .Cells(r, 4).Value = JSON("issues")(i)("fields")("project")("key")
-            .Cells(r, 5).Value = JSON("issues")(i)("fields")("epiclink")
-            .Cells(r, 6).Value = JSON("issues")(i)("fields")("storypoints")
-            .Cells(r, 7).Value = JSON("issues")(i)("fields")("status")("name")
-            .Cells(r, 8).Value = JSON("issues")(i)("fields")("status")("statusCategory")("name")
-            .Cells(r, 9).Value = JSON("issues")(i)("fields")("aggregatetimeestimate")
-            If JSON("issues")(i)("fields")("sprints").Count > 0 Then
-                s = JSON("issues")(i)("fields")("sprints").Count
-                .Cells(r, 10).Value = sprint_ParseString(JSON("issues")(i)("fields")("sprints")(s), "state") 'Find the last sprint's state
+            .Cells(r, 1).Value = JQL_Search_Response.Data("issues")(i)("id")
+            .Cells(r, 2).Value = JQL_Search_Response.Data("issues")(i)("key")
+            .Cells(r, 3).Value = JQL_Search_Response.Data("issues")(i)("fields")("issuetype")("name")
+            .Cells(r, 4).Value = JQL_Search_Response.Data("issues")(i)("fields")("project")("key")
+            .Cells(r, 5).Value = JQL_Search_Response.Data("issues")(i)("fields")(epiclink)
+            .Cells(r, 6).Value = JQL_Search_Response.Data("issues")(i)("fields")(storypoints)
+            .Cells(r, 7).Value = JQL_Search_Response.Data("issues")(i)("fields")("status")("name")
+            .Cells(r, 8).Value = JQL_Search_Response.Data("issues")(i)("fields")("status")("statusCategory")("name")
+            .Cells(r, 9).Value = JQL_Search_Response.Data("issues")(i)("fields")("aggregatetimeestimate")
+            If JQL_Search_Response.Data("issues")(i)("fields")(sprints).Count > 0 Then
+                s = JQL_Search_Response.Data("issues")(i)("fields")(sprints).Count
+                .Cells(r, 10).Value = sprint_ParseString(JQL_Search_Response.Data("issues")(i)("fields")(sprints)(s), "state") 'Find the last sprint's state
             Else
                 .Cells(r, 10).Value = "BACKLOG"
             End If
@@ -449,54 +451,47 @@ If http.Status = 200 Then
 End If
 
 End Function
-Private Function funcGetVelocity(ByVal auth As String, ByVal baseUrl As String, _
-                            ByVal rapidViewId As String) As Long
+Private Function funcGetVelocity(ByVal rapidViewId As String) As WebStatusCode
 
 ''
 ' Source the last velocity data from the team's last seven sprints
-
 '
-' @param {String} auth
-' @param {String} baseUrl
 ' @param {String} rapidViewId
-
 ' @write {ws_VelocityData}
 ' @apicalls 1x{get Velocity report}
-' @return {Long} status of apicall
+' @return {WebStatusCode} status of apicall
 ''
-
 '' Known limitations with this macro:
 ' (1) worksheet is not scrubbed (clear contents) as it is assumed that you always get seven sprints and just overwrite previous data
+           
+'Define the new Request
+Dim VelocityChartRequest As New WebRequest
+With VelocityChartRequest
+    .Resource = "greenhopper/latest/rapid/charts/velocity.json"
+    .Method = WebMethod.HttpGet
+    .AddQuerystringParam "rapidViewId", rapidViewId
+End With
+            
+Dim VelocityChartResponse As New JiraResponse
+Dim VelocityResponse As New WebResponse
 
-Dim http, JSON, Item As Object
-Dim apicall As String
-Dim r, s As Integer
+Set VelocityResponse = VelocityChartResponse.JiraCall(VelocityChartRequest)
 
-apicall = baseUrl & "rest/greenhopper/latest/rapid/charts/velocity.json?rapidViewId=" & rapidViewId
-             
-Set http = CreateObject("MSXML2.XMLHTTP")
+funcGetVelocity = VelocityResponse.StatusCode
 
-http.Open "GET", apicall, False
-http.setRequestHeader "Content-Type", "application/json"
-http.setRequestHeader "X-Atlassian-Token", "no-check"
-http.setRequestHeader "Authorization", "Basic " & auth
-http.Send
+Dim Item As Object
+Dim r%, s As Integer
 
-funcGetVelocity = http.Status
-
-If http.Status = 200 Then
-    Debug.Print apicall
-    Set JSON = ParseJson(http.responseText)
-    'Debug.Print http.responseText
+If funcGetVelocity = Ok Then
     r = 2
     s = 1
-    For Each Item In JSON("sprints")
+    For Each Item In VelocityResponse.Data("sprints")
         With ws_VelocityData
-            .Cells(r, 1).Value = JSON("sprints")(s)("id") ' SprintId
-            .Cells(r, 2).Value = JSON("sprints")(s)("name") 'SprintName
-            .Cells(r, 3).Value = JSON("sprints")(s)("state") 'SprintState
-            .Cells(r, 4).Value = JSON("velocityStatEntries")(CStr(.Cells(r, 1).Value))("estimated")("value") 'Commitment
-            .Cells(r, 5).Value = JSON("velocityStatEntries")(CStr(.Cells(r, 1).Value))("completed")("value") 'Completed
+            .Cells(r, 1).Value = VelocityResponse.Data("sprints")(s)("id") ' SprintId
+            .Cells(r, 2).Value = VelocityResponse.Data("sprints")(s)("name") 'SprintName
+            .Cells(r, 3).Value = VelocityResponse.Data("sprints")(s)("state") 'SprintState
+            .Cells(r, 4).Value = VelocityResponse.Data("velocityStatEntries")(CStr(.Cells(r, 1).Value))("estimated")("value") 'Commitment
+            .Cells(r, 5).Value = VelocityResponse.Data("velocityStatEntries")(CStr(.Cells(r, 1).Value))("completed")("value") 'Completed
         End With
         r = r + 1
         s = s + 1
@@ -504,140 +499,133 @@ If http.Status = 200 Then
 End If
 
 End Function
-Private Function funcPostTeamsFind(ByVal auth As String, ByVal baseUrl As String) As Long
+Private Function funcPostTeamsFind() As WebStatusCode
 
 ''
 ' Source the Teams from Portfolio for Jira
-
 '
-' @param {String} auth, baseUrl
 ' @write {ws_TeamsData}
 ' @apicalls 1x{post teams find}
-' @return {Long} status of apicall
+' @return {WebStatusCode} status of apicall
 ''
 
 '' Known limitations with this macro:
 ' (1) is hardcoded to a maximum of 50 teams in JsonPost
 
-Dim http, JSON, Team, Resource, Person As Object
-Dim t, p, r, l As Integer
 Dim JsonPost As String
-Dim apicall As String
-
 JsonPost = "{" & Chr(34) & "maxResults" & Chr(34) & ":50}"
-apicall = baseUrl & "rest/teams/1.0/teams/find"
 
-Set http = CreateObject("MSXML2.XMLHTTP")
+'Define the new JQLRequest
+Dim PostTeamsRequest As New WebRequest
+With PostTeamsRequest
+    .Resource = "teams/1.0/teams/find"
+    .Method = WebMethod.HttpPost
+    
+End With
+            
+Dim PostTeamsFindResponse As New JiraResponse
+Dim PostTeamsResponse As New WebResponse
 
-http.Open "POST", apicall, False
-http.setRequestHeader "Content-Type", "application/json"
-http.setRequestHeader "X-Atlassian-Token", "no-check"
-http.setRequestHeader "Authorization", "Basic " & auth
-http.Send (JsonPost)
+Set PostTeamsResponse = PostTeamsFindResponse.JiraCall(PostTeamsRequest)
 
-funcPostTeamsFind = http.Status
+funcPostTeamsFind = PostTeamsResponse.StatusCode
 
-If http.Status = 200 Then
-'    Debug.Print apicall
-'    Debug.Print JsonPost
-    Set JSON = ParseJson(http.responseText)
+Dim jiraTeam, jiraResource, jiraPerson As Object
+Dim t%, p%, r%, l As Integer
+
+If funcPostTeamsFind = Ok Then
     t = 1 'reset the teams to 1
     r = 2
     With ws_TeamsData
         .Activate
         .Range(Cells(2, 1), Cells(.Range("A1048576").End(xlUp).Row, 6)).ClearContents ' clear existing data
-        For Each Team In JSON("teams")
+        For Each jiraTeam In PostTeamsResponse.Data("teams")
             p = 1
-            For Each Resource In JSON("teams")(t)("resources")
-                .Cells(r, 1).Value = JSON("teams")(t)("id")
-                .Cells(r, 2).Value = JSON("teams")(t)("title")
-                .Cells(r, 3).Value = JSON("teams")(t)("resources")(p)("id")
-                .Cells(r, 4).Value = JSON("teams")(t)("resources")(p)("personId")
+            For Each jiraResource In PostTeamsResponse.Data("teams")(t)("resources")
+                .Cells(r, 1).Value = PostTeamsResponse.Data("teams")(t)("id")
+                .Cells(r, 2).Value = PostTeamsResponse.Data("teams")(t)("title")
+                .Cells(r, 3).Value = PostTeamsResponse.Data("teams")(t)("resources")(p)("id")
+                .Cells(r, 4).Value = PostTeamsResponse.Data("teams")(t)("resources")(p)("personId")
                 p = p + 1
                 r = r + 1
-            Next Resource
+            Next jiraResource
             t = t + 1
-        Next Team
+        Next jiraTeam
         r = 2
         p = 1
-        For Each Person In JSON("persons")
-            .Cells(r, 5).Value = JSON("persons")(p)("personId")
-            .Cells(r, 6).Value = JSON("persons")(p)("jiraUser")("jiraUsername")
+        For Each jiraPerson In PostTeamsResponse.Data("persons")
+            .Cells(r, 5).Value = PostTeamsResponse.Data("persons")(p)("personId")
+            .Cells(r, 6).Value = PostTeamsResponse.Data("persons")(p)("jiraUser")("jiraUsername")
             p = p + 1
             r = r + 1
-        Next Person
+        Next jiraPerson
     End With
 End If
 
 End Function
 
-Private Function funcGetSprintBurnDown(ByVal auth As String, ByVal baseUrl As String, _
-                            ByVal rapidViewId As String, ByVal SprintId As String) As Long
+Private Function funcGetSprintBurnDown(ByVal rapidViewId As String, ByVal sprintId As String) As WebStatusCode
 
 '' This function records a log of time spent against each issue during a sprint (from taken from the Sprint BurnDown Chart)
 '' It also updates the RemainingSprintTime public variable
 
-' @param {String} auth
-' @param {String} baseUrl
 ' @param {String} rapidViewId
 ' @param {String} TeamId
 ' @param {String} SprintId
 
 ' @write {ws_Work}
-' @return {Long} status of apicall
+' @return {WebStatusCode} status of apicall
 ''
 
-Dim http, JSON, time, change, rates As Object
-Dim apicall As String
-Dim c%, r%, d As Integer
+'Define the new Request
+Dim SprintBurnDownRequest As New WebRequest
+With SprintBurnDownRequest
+    .Resource = "greenhopper/1.0/rapid/charts/scopechangeburndownchart"
+    .Method = WebMethod.HttpGet
+    .AddQuerystringParam "rapidViewId", rapidViewId
+    .AddQuerystringParam "sprintId", sprintId
+End With
+            
+Dim SprintBurnDownChartResponse As New JiraResponse
+Dim SprintBurnDownResponse As New WebResponse
 
-apicall = baseUrl & "rest/greenhopper/1.0/rapid/charts/scopechangeburndownchart?rapidViewId=" _
-        & rapidViewId & "&sprintId=" & SprintId
-             
-Set http = CreateObject("MSXML2.XMLHTTP")
+Set SprintBurnDownResponse = SprintBurnDownChartResponse.JiraCall(SprintBurnDownRequest)
 
-http.Open "GET", apicall, False
-http.setRequestHeader "Content-Type", "application/json"
-http.setRequestHeader "X-Atlassian-Token", "no-check"
-http.setRequestHeader "Authorization", "Basic " & auth
-http.Send
+funcGetSprintBurnDown = SprintBurnDownResponse.StatusCode
 
-funcGetSprintBurnDown = http.Status
-
-Debug.Print (apicall)
-
-If http.Status = 200 Then
+If funcGetSprintBurnDown = Ok Then
     
     With ws_Work
         .Cells.ClearContents
-        .Cells(1, 1).Value = "Key"
+        .Cells(1, 1).Value = "key"
         .Cells(1, 2).Value = "rapidViewId"
         .Cells(1, 3).Value = "timeSpent"
     End With
-
-    Set JSON = ParseJson(http.responseText)
     
     RemainingSprintTime = 0
     DaysInSprint = 0
     
-    For Each time In JSON("changes")
+    Dim time, change, rates As Object
+    Dim c%, r%, d As Integer
+
+    For Each time In SprintBurnDownResponse.Data("changes")
         c = 1
-        For Each change In JSON("changes")(time)
-            If JSON("changes")(time)(c).Exists("timeC") Then
+        For Each change In SprintBurnDownResponse.Data("changes")(time)
+            If SprintBurnDownResponse.Data("changes")(time)(c).Exists("timeC") Then
                 'If JSON("changes")(time)(c)("timeC")("changeDate") < JSON("endTime") Then
                 '' To align with the Sprint Burndown chart I am changing this to take the effective date of the work log rather than the changedate _
                 which is when the worklog was created, thus allowing users to backvalue burndown data and comparing this to the time the sprint actually _
                 ended in Jira rather than the time it was expected to end. Updated if condition below:
-                If Val(time) < JSON("completeTime") Then
+                If Val(time) < SprintBurnDownResponse.Data("completeTime") Then
                     RemainingSprintTime = RemainingSprintTime + _
-                        (JSON("changes")(time)(c)("timeC")("newEstimate") - JSON("changes")(time)(c)("timeC")("oldEstimate"))
+                        (SprintBurnDownResponse.Data("changes")(time)(c)("timeC")("newEstimate") - SprintBurnDownResponse.Data("changes")(time)(c)("timeC")("oldEstimate"))
                     '' This next statement records a log of the issues that have had work logged to them during the sprint
-                    If Val(time) > JSON("startTime") Then
-                        If JSON("changes")(time)(c)("timeC").Exists("timeSpent") Then
+                    If Val(time) > SprintBurnDownResponse.Data("startTime") Then
+                        If SprintBurnDownResponse.Data("changes")(time)(c)("timeC").Exists("timeSpent") Then
                             With ws_Work.Range("A1048576").End(xlUp)
-                                .Offset(1).Value = JSON("changes")(time)(c)("key")
+                                .Offset(1).Value = SprintBurnDownResponse.Data("changes")(time)(c)("key")
                                 .Offset(1, 1).Value = rapidViewId
-                                .Offset(1, 2).Value = JSON("changes")(time)(c)("timeC")("timeSpent")
+                                .Offset(1, 2).Value = SprintBurnDownResponse.Data("changes")(time)(c)("timeC")("timeSpent")
                             End With
                         End If
                     End If
@@ -649,9 +637,9 @@ If http.Status = 200 Then
 End If
 
 r = 1
-For Each rates In JSON("workRateData")("rates")
-    If JSON("workRateData")("rates")(r)("rate") = 1 Then
-        DaysInSprint = DaysInSprint + JSON("workRateData")("rates")(r)("end") - JSON("workRateData")("rates")(r)("start")
+For Each rates In SprintBurnDownResponse.Data("workRateData")("rates")
+    If SprintBurnDownResponse.Data("workRateData")("rates")(r)("rate") = 1 Then
+        DaysInSprint = DaysInSprint + SprintBurnDownResponse.Data("workRateData")("rates")(r)("end") - SprintBurnDownResponse.Data("workRateData")("rates")(r)("start")
     End If
     r = r + 1
 Next rates
@@ -1079,42 +1067,6 @@ End With
 
 End Function
 
-'' The following Functions are used by the apicalls above
-
-Private Function CleanSprintsAndCustomFields(FullJasonStr As String)
-' This function replaces certain aspects of the default Jira Json result so that
-' it is easier to work with
-   
-Dim strArr() As String
-Dim getOccuranceCount As Long
-
-    strArr = Split(FullJasonStr, "com.atlassian.greenhopper.service.sprint.Sprint@")
-    getOccuranceCount = UBound(strArr)
-
-Dim i As Long
-Dim Pos1 As Long
-Dim Pos2 As Long
-
-    For i = 1 To getOccuranceCount
-        Pos1 = InStr(1, FullJasonStr, "com.atlassian.greenhopper.service.sprint.Sprint@")
-
-        Pos2 = InStr(Pos1 + Len("com.atlassian.greenhopper.service.sprint.Sprint@"), FullJasonStr, "[")
-
-        FullJasonStr = Left(FullJasonStr, Pos1 - 1) & Right(FullJasonStr, Len(FullJasonStr) - Pos2)
-    Next i
-
-'rename the custom fields usiing the Public Constants in the PublicVariables module
-FullJasonStr = Replace(FullJasonStr, sprints, "sprints")
-FullJasonStr = Replace(FullJasonStr, parentlink, "parentlink")
-FullJasonStr = Replace(FullJasonStr, epiclink, "epiclink")
-FullJasonStr = Replace(FullJasonStr, Team, "team")
-FullJasonStr = Replace(FullJasonStr, storypoints, "storypoints")
-'ensure that the sprints object is passed as an array even when there are no sprints
-FullJasonStr = Replace(FullJasonStr, """sprints""" & ":null", """sprints""" & ":[]")
-
-CleanSprintsAndCustomFields = FullJasonStr
-
-End Function
 
 Private Function sprint_ParseString(ByVal sprint_String As String, sprint_Field As String) As String
 
