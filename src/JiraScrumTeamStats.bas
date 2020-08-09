@@ -21,110 +21,37 @@ Attribute VB_Name = "JiraScrumTeamStats"
 ' @author bdoughton@me.com
 ' @license GNU General Public License v3.0 (https://opensource.org/licenses/GPL-3.0)
 '' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
-
+ 
 Option Explicit
 Option Base 1
 Public RemainingSprintTime As Long
 Public DaysInSprint As Long
 Public LastSprintName As String
 Public LastSprintId As Integer
-Function CreateWorkSheet(ByVal name As String, Optional ByRef headings As Variant) As Worksheet
 
-'' Checks if a Worksheet exists and creates one if it doesn't
-
-Dim ws_exists As Boolean
-Dim ws As Worksheet
-
-    For Each ws In ActiveWorkbook.Worksheets
-        If ws.name = name Then
-            ws_exists = True
-            Exit For
-        Else
-            ws_exists = False
-        End If
-    Next ws
-
-    If ws_exists Then
-        Set CreateWorkSheet = ActiveWorkbook.Worksheets(name)
-    Else
-        Set CreateWorkSheet = ActiveWorkbook.Sheets.Add
-        CreateWorkSheet.name = name
-        CreateWorkSheet.Range("A1").Resize(1, UBound(headings)).Value = headings ' assumes a one dimensional array; base 1
-    End If
-
-End Function
-Function ws_TeamStats() As Worksheet
-    Set ws_TeamStats = CreateWorkSheet("ws_TeamStats")
-End Function
-Function ws_LeadTimeData() As Worksheet
-    Dim HeadingsArr As Variant
-    HeadingsArr = Array("id", "key", "issueType", "createdDate", "sprintStartDate", "releaseDate", "totalTime", "totalString")
-    Set ws_LeadTimeData = CreateWorkSheet("ws_LeadTimeData", HeadingsArr)
-End Function
-Function ws_WiPData() As Worksheet
-    Dim HeadingsArr As Variant
-    HeadingsArr = Array("id", "key", "issueType", "inProgressDate", "endProgressDate", "releaseDate")
-    Set ws_WiPData = CreateWorkSheet("ws_WiPData", HeadingsArr)
-End Function
-Function ws_IncompleteIssuesData() As Worksheet
-    Dim HeadingsArr As Variant
-    HeadingsArr = Array("id", "key", "issueType", "project", "epicKey", "storyPoints", "status", "statusCategory", "aggregateTimeEstimate", "sprintState")
-    Set ws_IncompleteIssuesData = CreateWorkSheet("ws_IncompleteIssuesData", HeadingsArr)
-End Function
-Function ws_VelocityData() As Worksheet
-    Dim HeadingsArr As Variant
-    HeadingsArr = Array("SprintId", "SprintName", "State", "Committed", "Completed")
-    Set ws_VelocityData = CreateWorkSheet("ws_VelocityData", HeadingsArr)
-End Function
-Function ws_TeamsData() As Worksheet
-    Dim HeadingsArr As Variant
-    HeadingsArr = Array("id", "title", "resourceId", "personId", "personId2", "JiraUserName")
-    Set ws_TeamsData = CreateWorkSheet("ws_TeamsData", HeadingsArr)
-End Function
-Function ws_Work() As Worksheet
-    Dim HeadingsArr As Variant
-    HeadingsArr = Array("key", "rapidViewId", "timeSpent")
-    Set ws_Work = CreateWorkSheet("ws_Work", HeadingsArr)
-End Function
-Function ws_ProjectData() As Worksheet
-    Dim HeadingsArr As Variant
-    HeadingsArr = Array("id", "key", "projectName", "category")
-    Set ws_ProjectData = CreateWorkSheet("ws_ProjectData", HeadingsArr)
-End Function
-Function TeamId() As String
-''Placeholder to define other values
-    TeamId = "81"
-End Function
-Function rapidViewId() As String
-    rapidViewId = InputBox("rapidViewId?")
-End Function
-Function boardJql() As String
-''Placeholder to define other values
-    boardJql = "Team = 81 AND CATEGORY = calm AND NOT issuetype in (Initiative) ORDER BY Rank ASC"
-End Function
 Sub GetTeamStats(control As IRibbonControl)
-
+ 
 ''
 ' This should be run by the user and sets up all the underlying api calls to get the teams stats
-
+ 
 '' Known limitations with this macro:
 ' (1) Work in progress - run each call individually by commenting out the other api calls
-
+ 
 'Pause calculations and screen updating and make read-only worksheets visible
 'These actions are reversed at the end of the macro
 Application.ScreenUpdating = False
 Application.EnableEvents = False
 Application.Calculation = xlCalculationManual
-
+ 
     ' --- Comment out the respective value to enable or suspend logging
     WebHelpers.EnableLogging = True
 '    WebHelpers.EnableLogging = False
-    
+   
     'Check if a user is logged in and if not perform login, if login fails exit
     If Not IsLoggedIn Then
         If Not LoginUser Then Exit Sub
     End If
-    
+   
     ''Rollstats True of False
     'Dim blnRoll As Boolean
     'If MsgBox("Do you want to roll the previous data?", vbYesNo) = vbYes Then
@@ -133,53 +60,53 @@ Application.Calculation = xlCalculationManual
     '    blnRoll = False
     'End If
     'funcRollStats (blnRoll)
-  
+ 
     
     ''Fetch Data from Api
     Dim callResult(1 To 5) As WebStatusCode
     callResult(1) = funcGet3MonthsOfDoneJiras(boardJql, "In Progress", "Done", 0, 2)
-'    callResult(2) = funcGetIncompleteJiras("username:password", "url", boardJql, 0, 2)
-'    callResult(3) = funcGetVelocity("username:password", "url", rapidViewId)
-'    callResult(4) = funcPostTeamsFind("username:password", "url")
+    callResult(2) = funcGetIncompleteJiras(boardJql, 0, 2)
+    callResult(3) = funcGetVelocity(rapidViewId)
+    callResult(4) = funcPostTeamsFind()
 '
 '    ''Need to save the RemainingSprintTime to the right cell
-'    callResult(5) = funcGetSprintBurnDown("username:password", "url", rapidViewId, CStr(ws_VelocityData.Range("A2").Value))
-
-
+    callResult(5) = funcGetSprintBurnDown(rapidViewId, CStr(ws_VelocityData.Range("A2").Value))
+ 
+ 
 'Reverse the opening statements that paused calculations and screen updating
 Application.EnableEvents = True
 Application.ScreenUpdating = True
 Application.Calculation = xlCalculationAutomatic
-
+ 
 MsgBox ("Success")
-
+ 
 End Sub
-
+ 
 Private Function funcRollStats(ByVal Enabled As Boolean)
-
+ 
 ''
 ' Function will roll over previous data from the ws_TeamStats worksheet ready to add new data
 '
 ''
-
+ 
 '' Known limitations with this macro:
 ' (1) ws_TeamStats worksheet has to exist (with headings and formatting) for the macro to run
-
+ 
 If Enabled Then
     With ws_TeamStats
         .Range("AW22:BA44").Value = .Range("AX22:BB44").Value
     End With
 End If
-
+ 
 End Function
-
+ 
 Private Function funcGet3MonthsOfDoneJiras(ByVal boardJql As String, ByVal inProgressState As String, ByVal endProgressState As String, _
             ByRef startAtVal, r As Integer) As WebStatusCode
-
+ 
 ''
 ' Source Jiras that are in a Done state and were included in a sprint and had a fixVersion that was updated in the last 24 weeks
 ' Then cycle through and get the sub-tasks for all the issues from the first api call
-
+ 
 '
 ' @param {String} boardJql, inProgressState, endProgressState
 ' @param {Integer} startAtVal, r
@@ -187,15 +114,12 @@ Private Function funcGet3MonthsOfDoneJiras(ByVal boardJql As String, ByVal inPro
 ' @apicalls 1x{get search standardissuetypes} ?x{get search subtaskissuetypes}
 ' @return {WebStatusCode} status of first apicall
 ''
-
+ 
 '' Known limitations with this macro:
 ' (1) Can't handle different inProgressState and endProgressState by issue type
 ' (2) needs to be updated to run for a smaller number of maxresults
-' (3) worksheets are not scrubbed the first time the macro is called
-' (4) worksheets have to exist (with headings) for the macro to run
-' (5) there is no error handling around the second api call to get the subtasks which could fail
-' (6) ws_LeadTimeData sheet needs to be made active
-
+' (3) there is no error handling around the second api call to get the subtasks which could fail
+ 
 Dim jql As String
 jql = "fixversion changed after -24w AND " & _
         "fixVersion is not EMPTY AND " & _
@@ -203,7 +127,7 @@ jql = "fixversion changed after -24w AND " & _
         "NOT issuetype in (Theme,Initiative,Epic,Test,subTaskIssueTypes()) AND " & _
         "statusCategory in (Done) AND " & _
         boardJql
-
+ 
 Dim apiFields As String
 apiFields = "key," _
         & "issuetype," _
@@ -212,7 +136,7 @@ apiFields = "key," _
         & sprints & "," _
         & "created," _
         & "changelog"
-
+ 
 'Define the new JQLRequest
 Dim JQL_PBI_Request As New WebRequest
 With JQL_PBI_Request
@@ -224,7 +148,7 @@ With JQL_PBI_Request
     .AddQuerystringParam "maxResults", "1000"
     .AddQuerystringParam "expand", "changelog"
 End With
-            
+           
 Dim JQL_PBI_Search_Response As New JiraResponse
 Dim JQL_Search_Response As New WebResponse
 Dim Item As Object
@@ -241,12 +165,14 @@ Dim col As Integer
 Dim dictResourceNm As Dictionary
 Dim dictTimeLoggedToStory As Dictionary
 Dim collIssueKey As New Collection
-
+ 
 Set JQL_Search_Response = JQL_PBI_Search_Response.JiraCall(JQL_PBI_Request)
-
+ 
 funcGet3MonthsOfDoneJiras = JQL_Search_Response.StatusCode
-
+ 
 If funcGet3MonthsOfDoneJiras = Ok Then
+    clearOldData ws_LeadTimeData
+    clearOldData ws_WiPData
     Set dictTimeLoggedToStory = New Dictionary
     startAtVal = startAtVal + 1000 'Increment the next start position based on maxResults above -- making this smaller will speed up the API calls
     i = 1 'reset the issue to 1
@@ -265,7 +191,7 @@ If funcGet3MonthsOfDoneJiras = Ok Then
                     .Cells(r, 6).Value = JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate") 'Always use the 1st fixVersion, even if there are multiple
                 Else
                     .Cells(r, 6).Value = Left(JQL_Search_Response.Data("issues")(i)("fields")("resolutiondate"), 10) 'use the resolution date if there is no fixVersion. Note: this can lead to incorrect deployment frequency
-                    
+                   
                 End If
                 For Each history In JQL_Search_Response.Data("issues")(i)("changelog")("histories")
                     c = 1 'reset the change item to 1
@@ -301,16 +227,16 @@ If funcGet3MonthsOfDoneJiras = Ok Then
         End If
         i = i + 1 'increment the issue
     Next
-    
+   
     '' This next section cycles through all the sub-tasks and adds up the time logged to each
-
+ 
     For Each rng_Parent In ws_LeadTimeData.Range("B2:B" & ws_LeadTimeData.Range("A1").End(xlDown).Row)
         jql = "Parent = " & rng_Parent.Value
-    
+   
         apiFields = "key," _
             & "issuetype," _
             & "changelog"
-
+ 
         Dim JQL_SubTask_Request As New WebRequest
         With JQL_SubTask_Request
             .Resource = "api/2/search"
@@ -321,10 +247,10 @@ If funcGet3MonthsOfDoneJiras = Ok Then
             .AddQuerystringParam "maxResults", "1000"
             .AddQuerystringParam "expand", "changelog"
         End With
-
+ 
         Dim JQL_SubTask_Search_Response As New JiraResponse
         Set JQL_Search_Response = JQL_SubTask_Search_Response.JiraCall(JQL_SubTask_Request)
-
+ 
         i = 1 'reset the issue to 1
         For Each Item In JQL_Search_Response.Data("issues")
             h = 1 'reset the change history to 1
@@ -357,23 +283,24 @@ If funcGet3MonthsOfDoneJiras = Ok Then
             i = i + 1 'increment the issue
         Next
         '' Totals
+        ws_LeadTimeData.Activate
         For Each rng_author In ws_LeadTimeData.Range(Cells(1, 9), Cells(1, ws_LeadTimeData.Range("A1").End(xlToRight).Column))
             ws_LeadTimeData.Cells(rng_Parent.Row, rng_author.Column) = collIssueKey(rng_Parent.Value)(rng_author.Value)
         Next rng_author
-        
+       
         col = ws_LeadTimeData.Range("A1").End(xlToRight).Column
         rng_Parent.Offset(0, 5).Value = Application.WorksheetFunction.Sum(Range(Cells(rng_Parent.Row, 9), Cells(rng_Parent.Row, col)))
         rng_Parent.Offset(0, 6).Value = Jira.jiratime(rng_Parent.Offset(0, 5).Value)
         Set JQL_SubTask_Request = Nothing
     Next rng_Parent
 End If
-
+ 
 End Function
 Private Function funcGetIncompleteJiras(ByVal boardJql As String, ByRef startAtVal, r As Integer) As WebStatusCode
-
+ 
 ''
 ' Source Jiras that are not in a done state and not subTasks
-
+ 
 '
 ' @param {String} boardJql
 ' @param {Integer} startAtVal, r
@@ -381,17 +308,15 @@ Private Function funcGetIncompleteJiras(ByVal boardJql As String, ByRef startAtV
 ' @apicalls 1x{get search standardissuetypes}
 ' @return {WebStatusCode} status of apicall
 ''
-
+ 
 '' Known limitations with this macro:
 ' (1) needs to be updated to run for a smaller number of maxresults
-' (2) worksheet is not scrubbed (clear contents) the first time the macro is called
-' (3) worksheet has to exist (with headings) for the macro to run
-
+ 
 Dim jql As String
 jql = "statusCategory not in (Done) AND " & _
         "issuetype not in subTaskIssueTypes() AND " & _
         boardJql
-        
+       
 Dim apiFields As String
 apiFields = "key," _
         & "issuetype," _
@@ -401,7 +326,7 @@ apiFields = "key," _
         & storypoints & "," _
         & "aggregatetimeestimate," _
         & sprints
-            
+           
 'Define the new Request
 Dim JQL_PBI_Request As New WebRequest
 With JQL_PBI_Request
@@ -413,23 +338,24 @@ With JQL_PBI_Request
     .AddQuerystringParam "maxResults", "1000"
     .AddQuerystringParam "expand", "changelog"
 End With
-            
+           
 Dim JQL_PBI_Search_Response As New JiraResponse
 Dim JQL_Search_Response As New WebResponse
-
+ 
 Set JQL_Search_Response = JQL_PBI_Search_Response.JiraCall(JQL_PBI_Request)
-
+ 
 funcGetIncompleteJiras = JQL_Search_Response.StatusCode
-
+ 
 Dim i%, s As Integer
 Dim Item As Object
-
+ 
 If funcGetIncompleteJiras = Ok Then
+    clearOldData ws_IncompleteIssuesData
     startAtVal = startAtVal + 1000 'Increment the next start position based on maxResults above
     i = 1 'reset the issue to 1
     For Each Item In JQL_Search_Response.Data("issues")
         With ws_IncompleteIssuesData
-            .Cells(r, 1).Value = JQL_Search_Response.Data("issues")(i)("id")
+           .Cells(r, 1).Value = JQL_Search_Response.Data("issues")(i)("id")
             .Cells(r, 2).Value = JQL_Search_Response.Data("issues")(i)("key")
             .Cells(r, 3).Value = JQL_Search_Response.Data("issues")(i)("fields")("issuetype")("name")
             .Cells(r, 4).Value = JQL_Search_Response.Data("issues")(i)("fields")("project")("key")
@@ -438,7 +364,7 @@ If funcGetIncompleteJiras = Ok Then
             .Cells(r, 7).Value = JQL_Search_Response.Data("issues")(i)("fields")("status")("name")
             .Cells(r, 8).Value = JQL_Search_Response.Data("issues")(i)("fields")("status")("statusCategory")("name")
             .Cells(r, 9).Value = JQL_Search_Response.Data("issues")(i)("fields")("aggregatetimeestimate")
-            If JQL_Search_Response.Data("issues")(i)("fields")(sprints).Count > 0 Then
+            If VarType(JQL_Search_Response.Data("issues")(i)("fields")(sprints)) = vbObject Then
                 s = JQL_Search_Response.Data("issues")(i)("fields")(sprints).Count
                 .Cells(r, 10).Value = sprint_ParseString(JQL_Search_Response.Data("issues")(i)("fields")(sprints)(s), "state") 'Find the last sprint's state
             Else
@@ -449,10 +375,10 @@ If funcGetIncompleteJiras = Ok Then
         r = r + 1 'increment the row
     Next Item
 End If
-
+ 
 End Function
 Private Function funcGetVelocity(ByVal rapidViewId As String) As WebStatusCode
-
+ 
 ''
 ' Source the last velocity data from the team's last seven sprints
 '
@@ -461,9 +387,7 @@ Private Function funcGetVelocity(ByVal rapidViewId As String) As WebStatusCode
 ' @apicalls 1x{get Velocity report}
 ' @return {WebStatusCode} status of apicall
 ''
-'' Known limitations with this macro:
-' (1) worksheet is not scrubbed (clear contents) as it is assumed that you always get seven sprints and just overwrite previous data
-           
+          
 'Define the new Request
 Dim VelocityChartRequest As New WebRequest
 With VelocityChartRequest
@@ -471,20 +395,21 @@ With VelocityChartRequest
     .Method = WebMethod.HttpGet
     .AddQuerystringParam "rapidViewId", rapidViewId
 End With
-            
+           
 Dim VelocityChartResponse As New JiraResponse
 Dim VelocityResponse As New WebResponse
-
+ 
 Set VelocityResponse = VelocityChartResponse.JiraCall(VelocityChartRequest)
-
+ 
 funcGetVelocity = VelocityResponse.StatusCode
-
+ 
 Dim Item As Object
 Dim r%, s As Integer
-
+ 
 If funcGetVelocity = Ok Then
     r = 2
     s = 1
+    clearOldData ws_VelocityData
     For Each Item In VelocityResponse.Data("sprints")
         With ws_VelocityData
             .Cells(r, 1).Value = VelocityResponse.Data("sprints")(s)("id") ' SprintId
@@ -497,10 +422,10 @@ If funcGetVelocity = Ok Then
         s = s + 1
     Next
 End If
-
+ 
 End Function
 Private Function funcPostTeamsFind() As WebStatusCode
-
+ 
 ''
 ' Source the Teams from Portfolio for Jira
 '
@@ -508,37 +433,39 @@ Private Function funcPostTeamsFind() As WebStatusCode
 ' @apicalls 1x{post teams find}
 ' @return {WebStatusCode} status of apicall
 ''
-
+ 
 '' Known limitations with this macro:
 ' (1) is hardcoded to a maximum of 50 teams in JsonPost
-
-Dim JsonPost As String
-JsonPost = "{" & Chr(34) & "maxResults" & Chr(34) & ":50}"
-
+ 
+'Dim JsonPost As String
+'JsonPost = "{" & Chr(34) & "maxResults" & Chr(34) & ":50}"
+Dim JiraBody As New Dictionary
+JiraBody.Add "maxResults", 50
+ 
 'Define the new JQLRequest
 Dim PostTeamsRequest As New WebRequest
 With PostTeamsRequest
     .Resource = "teams/1.0/teams/find"
     .Method = WebMethod.HttpPost
-    
+    Set .Body = JiraBody
 End With
-            
+           
 Dim PostTeamsFindResponse As New JiraResponse
 Dim PostTeamsResponse As New WebResponse
-
+ 
 Set PostTeamsResponse = PostTeamsFindResponse.JiraCall(PostTeamsRequest)
-
+ 
 funcPostTeamsFind = PostTeamsResponse.StatusCode
-
+ 
 Dim jiraTeam, jiraResource, jiraPerson As Object
 Dim t%, p%, r%, l As Integer
-
+ 
 If funcPostTeamsFind = Ok Then
     t = 1 'reset the teams to 1
     r = 2
+    clearOldData ws_TeamsData
     With ws_TeamsData
         .Activate
-        .Range(Cells(2, 1), Cells(.Range("A1048576").End(xlUp).Row, 6)).ClearContents ' clear existing data
         For Each jiraTeam In PostTeamsResponse.Data("teams")
             p = 1
             For Each jiraResource In PostTeamsResponse.Data("teams")(t)("resources")
@@ -561,22 +488,22 @@ If funcPostTeamsFind = Ok Then
         Next jiraPerson
     End With
 End If
-
+ 
 End Function
-
+ 
 Private Function funcGetSprintBurnDown(ByVal rapidViewId As String, ByVal sprintId As String) As WebStatusCode
-
+ 
 '' This function records a log of time spent against each issue during a sprint (from taken from the Sprint BurnDown Chart)
 '' It also updates the RemainingSprintTime public variable
-
+ 
 ' @param {String} rapidViewId
 ' @param {String} TeamId
 ' @param {String} SprintId
-
+ 
 ' @write {ws_Work}
 ' @return {WebStatusCode} status of apicall
 ''
-
+ 
 'Define the new Request
 Dim SprintBurnDownRequest As New WebRequest
 With SprintBurnDownRequest
@@ -585,37 +512,26 @@ With SprintBurnDownRequest
     .AddQuerystringParam "rapidViewId", rapidViewId
     .AddQuerystringParam "sprintId", sprintId
 End With
-            
+           
 Dim SprintBurnDownChartResponse As New JiraResponse
 Dim SprintBurnDownResponse As New WebResponse
-
+ 
 Set SprintBurnDownResponse = SprintBurnDownChartResponse.JiraCall(SprintBurnDownRequest)
-
+ 
 funcGetSprintBurnDown = SprintBurnDownResponse.StatusCode
-
+ 
 If funcGetSprintBurnDown = Ok Then
-    
-    With ws_Work
-        .Cells.ClearContents
-        .Cells(1, 1).Value = "key"
-        .Cells(1, 2).Value = "rapidViewId"
-        .Cells(1, 3).Value = "timeSpent"
-    End With
-    
+    clearOldData ws_Work
     RemainingSprintTime = 0
     DaysInSprint = 0
-    
+   
     Dim time, change, rates As Object
     Dim c%, r%, d As Integer
-
-    For Each time In SprintBurnDownResponse.Data("changes")
+ 
+    For Each time In SprintBurnDownResponse.Data("changes").Keys
         c = 1
         For Each change In SprintBurnDownResponse.Data("changes")(time)
             If SprintBurnDownResponse.Data("changes")(time)(c).Exists("timeC") Then
-                'If JSON("changes")(time)(c)("timeC")("changeDate") < JSON("endTime") Then
-                '' To align with the Sprint Burndown chart I am changing this to take the effective date of the work log rather than the changedate _
-                which is when the worklog was created, thus allowing users to backvalue burndown data and comparing this to the time the sprint actually _
-                ended in Jira rather than the time it was expected to end. Updated if condition below:
                 If Val(time) < SprintBurnDownResponse.Data("completeTime") Then
                     RemainingSprintTime = RemainingSprintTime + _
                         (SprintBurnDownResponse.Data("changes")(time)(c)("timeC")("newEstimate") - SprintBurnDownResponse.Data("changes")(time)(c)("timeC")("oldEstimate"))
@@ -635,7 +551,7 @@ If funcGetSprintBurnDown = Ok Then
         Next change
     Next time
 End If
-
+ 
 r = 1
 For Each rates In SprintBurnDownResponse.Data("workRateData")("rates")
     If SprintBurnDownResponse.Data("workRateData")("rates")(r)("rate") = 1 Then
@@ -643,13 +559,13 @@ For Each rates In SprintBurnDownResponse.Data("workRateData")("rates")
     End If
     r = r + 1
 Next rates
-
+ 
 DaysInSprint = DaysInSprint / 86400 / 1000
-
+ 
 End Function
-
+ 
 Function funcPredictabilitySprintsEstimated()
-
+ 
 '' Update the TeamStats worksheet with the *Sprints Estimated* calcualtion
 ' The value for stories is added both to the sparkline graph
 ' Then the value for subtasks, stories and epics is added to the board for display
@@ -658,10 +574,10 @@ Function funcPredictabilitySprintsEstimated()
 '
 ''
 Dim SubTaskEstimate&, StoryPointEstimate&, TShirtEstimate As Long
-
+ 
 '' To be removed and added as an input variable
 DaysInSprint = 9
-
+ 
 'SubTaskEstimate calculated as _
     = aggregateTimeEstimate from backlog / teamsize / working DaysInSprint / working hours in day / seconds in hour
 SubTaskEstimate = Excel.WorksheetFunction.Sum(ws_IncompleteIssuesData.Range("I:I")) _
@@ -669,71 +585,72 @@ SubTaskEstimate = Excel.WorksheetFunction.Sum(ws_IncompleteIssuesData.Range("I:I
                     / DaysInSprint _
                     / 8 _
                     / 3600
-                    
+                   
 'StoryPointEstimate calculated as _
     = Total StoryPoints from backlog (excluding Epics and stories greater than 20) / Average Velocity from last 7 sprints
 StoryPointEstimate = Excel.WorksheetFunction.SumIfs(ws_IncompleteIssuesData.Range("F:F"), ws_IncompleteIssuesData.Range("F:F"), "<20", ws_IncompleteIssuesData.Range("C:C"), "<>Epic") _
                     / Excel.WorksheetFunction.Average(ws_VelocityData.Range("E:E"))
-
+ 
 ''Note: TShirtEstimate is taken to be all Stories with a size of 20 or more. We are not taking Epic estimates into account
-
+ 
 'TShirtEstimate calculated as _
     = Total StoryPoints from backlog (excluding Epics and stories less than 20) / Average Velocity from last 7 sprints
 TShirtEstimate = Excel.WorksheetFunction.SumIfs(ws_IncompleteIssuesData.Range("F:F"), ws_IncompleteIssuesData.Range("F:F"), ">=20", ws_IncompleteIssuesData.Range("C:C"), "<>Epic") _
                     / Excel.WorksheetFunction.Average(ws_VelocityData.Range("E:E"))
-
+ 
 With ws_TeamStats
     .Range("BB25").Value = Round(StoryPointEstimate, 0)
     .Range("J10").Value = CStr(Round(SubTaskEstimate, 0)) & "/" & CStr(Round(StoryPointEstimate, 0)) & "/" & CStr(Round(TShirtEstimate, 0))
 End With
-
+ 
 End Function
 Function funcPredictabilityVelocity()
-
+ 
 '' Update the TeamStats worksheet with the *Sprint Velocity* calcualtion
 ' The value is added both to the sparkline graph
 ' Then the to the board for display
 '
 ' Dependent on function: funcGetVelocity
 ''
-
+ 
 'Sprint Velocity calculated as _
     = Completed / Committed for the most recent sprint
 With ws_TeamStats
     .Range("BB26").Value = ws_VelocityData.Range("E2").Value / ws_VelocityData.Range("D2").Value
     .Range("S10").Value = ws_VelocityData.Range("E2").Value / ws_VelocityData.Range("D2").Value
 End With
-
+ 
 End Function
 Function funcPredictabilityTiPVariability()
-
+ 
 '' Update the TeamStats worksheet with the *TiP Variability* calcualtion
 ' The value is added both to the sparkline graph
 ' Then the to the board for display
 '
-' Dependent on function: funcGetDoneJiras & funcResponsivenessTiP
+' Dependent on function: funcGetDoneJiras & funcResponsivenessTiP (see below)
 ''
-
+ 
 '' Known limitations with this macro:
 ' (1) ws_LeadTimeData sheet needs to be made active
-
+ 
 Dim rng As Range
 Dim TiPCol As Integer
 Dim TipRow As Long
-
+ 
+ws_LeadTimeData.Activate
 TiPCol = ws_LeadTimeData.Range("1:1").Find("TiP").Column
 TipRow = ws_LeadTimeData.Cells(1, TiPCol).End(xlDown).Row
-
+ 
 Set rng = ws_LeadTimeData.Range(Cells(2, TiPCol), Cells(TipRow, TiPCol))
-
+ 
 With ws_TeamStats
     .Range("BB27").Value = Excel.WorksheetFunction.StDev_P(rng) / Excel.WorksheetFunction.Average(rng)
     .Range("J16").Value = Excel.WorksheetFunction.StDev_P(rng) / Excel.WorksheetFunction.Average(rng)
 End With
-
+ 
 End Function
 Function funcPredictabilitySprintOutputVariability()
-
+ 
 '' Update the TeamStats worksheet with the *Sprint Output Variability* calcualtion
 ' The value is added both to the sparkline graph
 ' Then the to the board for display
@@ -741,15 +658,15 @@ Function funcPredictabilitySprintOutputVariability()
 ' Dependent on function: funcGetVelocity
 '
 ''
-
+ 
 With ws_TeamStats
     .Range("BB28").Value = Excel.WorksheetFunction.StDev_P(ws_VelocityData.Range("E2:E8")) / Excel.WorksheetFunction.Average(ws_VelocityData.Range("E2:E8"))
     .Range("S16").Value = Excel.WorksheetFunction.StDev_P(ws_VelocityData.Range("E2:E8")) / Excel.WorksheetFunction.Average(ws_VelocityData.Range("E2:E8"))
 End With
-
+ 
 End Function
 Function funcResponsivenessLeadTime()
-
+ 
 '' Update the TeamStats worksheet with the *Lead Time* calcualtion
 ' The value is added both to the sparkline graph
 ' Then the to the board for display
@@ -757,33 +674,33 @@ Function funcResponsivenessLeadTime()
 ' Dependent on function: funcGetDoneJiras
 '
 ''
-
+ 
 Dim col As Integer
 Dim rng_LeadTime As Range
 Dim c As Range
-
+ 
 With ws_LeadTimeData
-
+    .Activate
     col = .Range("A1").End(xlToRight).Column + 1
     .Cells(1, col).Value = "leadTime"
-
+ 
     Set rng_LeadTime = .Range(Cells(2, col), Cells(.Range("A1").End(xlDown).Row, col))
-
+ 
     For Each c In rng_LeadTime
         c.Value = CDate(.Cells(c.Row, 6).Value) - CDate(Left(.Cells(c.Row, 4).Value, 10))
     Next c
-    
+   
 End With
-
-
+ 
+ 
 With ws_TeamStats
     .Range("BB30").Value = Excel.WorksheetFunction.Average(rng_LeadTime)
     .Range("AD10").Value = Round(Excel.WorksheetFunction.Average(rng_LeadTime), 0)
 End With
-
+ 
 End Function
 Function funcResponsivenessDeploymentFrequency()
-
+ 
 '' Update the TeamStats worksheet with the *Deployment Frequency* calcualtion
 ' The value is added both to the sparkline graph
 ' Then the to the board for display
@@ -791,15 +708,15 @@ Function funcResponsivenessDeploymentFrequency()
 ' Dependent on function: funcGetDoneJiras
 '
 ''
-
+ 
 'Deployment Frequency calculated as _
     = Number of unique releaseDates in the previous month from today
-
+ 
 Dim dict As Dictionary
 Dim cell As Range
-
+ 
 Set dict = New Dictionary
-        
+       
 For Each cell In ws_LeadTimeData.Range(Cells(2, 6), Cells(ws_LeadTimeData.Range("F1").End(xlDown).Row, 6))
     If cell.Value >= DateAdd("m", -1, "01/" & Month(Now()) & "/" & Year(Now())) Then ' only count if after start of previous month
         If cell.Value < CDate("01/" & Month(Now()) & "/" & Year(Now())) Then ' only count if before start of current month
@@ -809,15 +726,15 @@ For Each cell In ws_LeadTimeData.Range(Cells(2, 6), Cells(ws_LeadTimeData.Range(
         End If
     End If
 Next
-
+ 
 With ws_TeamStats
     .Range("BB31").Value = dict.Count
     .Range("AM10").Value = dict.Count
 End With
-
+ 
 End Function
 Function funcResponsivenessTiP()
-
+ 
 '' Update the TeamStats worksheet with the *TiP* calcualtion
 ' The value is added both to the sparkline graph
 ' Then the to the board for display
@@ -825,33 +742,33 @@ Function funcResponsivenessTiP()
 ' Dependent on function: funcGetDoneJiras
 '
 ''
-
+ 
 Dim col As Integer
 Dim rng_TiP As Range
 Dim c As Range
-
+ 
 With ws_LeadTimeData
-
+ 
     col = .Range("A1").End(xlToRight).Column + 1
     .Cells(1, col).Value = "TiP"
-
+ 
     Set rng_TiP = .Range(Cells(2, col), Cells(.Range("A1").End(xlDown).Row, col))
-
+ 
     For Each c In rng_TiP
         c.Value = CDate(.Cells(c.Row, 6).Value) - CDate(Left(.Cells(c.Row, 5).Value, 10))
     Next c
-    
+   
 End With
-
-
+ 
+ 
 With ws_TeamStats
     .Range("BB32").Value = Excel.WorksheetFunction.Average(rng_TiP)
     .Range("AD16").Value = Round(Excel.WorksheetFunction.Average(rng_TiP), 0)
 End With
-
+ 
 End Function
 Function funcResponsivenessWiP()
-
+ 
 '' Update the TeamStats worksheet with the *WiP* calcualtion
 ' The value is added both to the sparkline graph
 ' Then the to the board for display
@@ -859,38 +776,38 @@ Function funcResponsivenessWiP()
 ' Dependent on function: funcGetDoneJiras
 '
 ''
-
+ 
 With ws_TeamStats
     .Range("BB33").Value = 0 ' Forumla to be updated
     .Range("AM16").Value = 0 ' Forumla to be updated
 End With
-
+ 
 End Function
 Function funcProductivityReleaseVelocity()
-
+ 
 '' Update the TeamStats worksheet with the *Release Velocity* data
 '
 ' Dependent on function: funcGetDoneJiras
 '
 ''
-
+ 
 With ws_TeamStats
     .Range("AT5").Value = 0 ' Forumla to be updated - Feature Velocity
     .Range("AU5").Value = 0 ' Forumla to be updated - Defects Velocity
     .Range("AV5").Value = 0 ' Forumla to be updated - Risks Velocity
     .Range("AW5").Value = 0 ' Forumla to be updated - Debts Velocity
     .Range("AX5").Value = 0 ' Forumla to be updated - Enablers Velocity
-    
+   
     .Range("AT6").Value = 0 ' Forumla to be updated - Feature Baseline
     .Range("AU6").Value = 0 ' Forumla to be updated - Defects Baseline
     .Range("AV6").Value = 0 ' Forumla to be updated - Risks Baseline
     .Range("AW6").Value = 0 ' Forumla to be updated - Debts Baseline
     .Range("AX6").Value = 0 ' Forumla to be updated - Enablers Baseline
 End With
-
+ 
 End Function
 Function funcProductivityEfficiency()
-
+ 
 '' Update the TeamStats worksheet with the *Efficiency* calcualtion
 ' The value is added both to the sparkline graph
 ' Then the to the board for display
@@ -898,32 +815,32 @@ Function funcProductivityEfficiency()
 ' Dependent on function: funcGetDoneJiras
 '
 ''
-
+ 
 With ws_TeamStats
     .Range("BB35").Value = 0 ' Forumla to be updated
     .Range("AB24").Value = 0 ' Forumla to be updated
 End With
-
+ 
 End Function
 Function funcProductivityDistribution()
-
+ 
 '' Update the TeamStats worksheet with the *Distribution* data
 '
 ' Dependent on function: funcGetDoneJiras & funcGetIncompleteJiras
 '
 ''
-
+ 
 ''' Should not rely on funcGetDoneJiras as this is only last 3 months of data. Need to go back 12 months so new api call
-
-
+ 
+ 
 With ws_TeamStats
     .Range("AT11:BF15").Value = 0 ' Forumla to be updated - Data
     .Range("AT16:BE16").Value = "Date" ' Formula to be updated - Release Months
 End With
-
+ 
 End Function
 Function funcQualityTimeToResolve()
-
+ 
 '' Update the TeamStats worksheet with the *Time To Resolve* calcualtion
 ' The value is added both to the sparkline graph
 ' Then the to the board for display
@@ -931,15 +848,15 @@ Function funcQualityTimeToResolve()
 ' Dependent on function: funcGetDoneJiras
 '
 ''
-
+ 
 With ws_TeamStats
     .Range("BB37").Value = 0 ' Forumla to be updated
     .Range("AM24").Value = 0 ' Forumla to be updated
 End With
-
+ 
 End Function
 Function funcQualityDefectDentisy()
-
+ 
 '' Update the TeamStats worksheet with the *Defect Density* calcualtion
 ' The value is added both to the sparkline graph
 ' Then the to the board for display
@@ -947,15 +864,15 @@ Function funcQualityDefectDentisy()
 ' Dependent on function: **AffectsVersionJQL**
 '
 ''
-
+ 
 With ws_TeamStats
     .Range("BB38").Value = "TBC" ' Forumla to be updated
     .Range("AM30").Value = "TBC" ' Forumla to be updated
 End With
-
+ 
 End Function
 Function funcQualityFailRate()
-
+ 
 '' Update the TeamStats worksheet with the *Fail Rate* calcualtion
 ' The value is added both to the sparkline graph
 ' Then the to the board for display
@@ -963,15 +880,15 @@ Function funcQualityFailRate()
 ' Dependent on function: **AffectsVersionJQL**
 '
 ''
-
+ 
 With ws_TeamStats
     .Range("BB39").Value = "TBC" ' Forumla to be updated
     .Range("AM36").Value = "TBC" ' Forumla to be updated
 End With
-
+ 
 End Function
 Function funcScrumTeamStability()
-
+ 
 '' Update the TeamStats worksheet with the Team Stability
 ' The value is added both to the sparkline graph
 ' Then to the board for display
@@ -979,15 +896,15 @@ Function funcScrumTeamStability()
 ' Dependent on function: funcPostTeamsFind
 '
 ''
-
+ 
 With ws_TeamStats
     .Range("BB22").Value = 0 ' Forumla to be updated
     .Range("J5").Value = 0 ' Forumla to be updated
 End With
-
+ 
 End Function
 Function funcScrumUnplannedWork()
-
+ 
 '' Update the TeamStats worksheet with the *Uplanned Work* (RemainingSprintTime)
 ' The the value in milliseconds is used for the sparkline graph
 ' This is then converted into a string for display in weeks, days, hours on the board
@@ -995,15 +912,15 @@ Function funcScrumUnplannedWork()
 ' Dependent on function: funcGetSprintBurnDown
 '
 ''
-
+ 
 With ws_TeamStats
     .Range("BB23").Value = RemainingSprintTime
     .Range("AD5").Value = Jira.jiratime(RemainingSprintTime)
 End With
-
+ 
 End Function
 Function funcJiraAdminCorrectStatus()
-
+ 
 '' Update the TeamStats worksheet with the *Correct Status* calcualtion
 ' The value is added both to the sparkline graph
 ' Then to the board for display
@@ -1011,15 +928,15 @@ Function funcJiraAdminCorrectStatus()
 ' Dependent on function: funcGetIncompleteJiras
 '
 ''
-
+ 
 With ws_TeamStats
     .Range("BB41").Value = 0 ' Forumla to be updated
     .Range("J43").Value = 0 ' Forumla to be updated
 End With
-
+ 
 End Function
 Function funcJiraAdminCorrectEpicLink()
-
+ 
 '' Update the TeamStats worksheet with the *Correct Project & Epic Link* calcualtion
 ' The value is added both to the sparkline graph
 ' Then to the board for display
@@ -1027,15 +944,15 @@ Function funcJiraAdminCorrectEpicLink()
 ' Dependent on function: funcGetIncompleteJiras
 '
 ''
-
+ 
 With ws_TeamStats
     .Range("BB42").Value = 0 ' Forumla to be updated
     .Range("T43").Value = 0 ' Forumla to be updated
 End With
-
+ 
 End Function
 Function funcJiraAdminDoneInSprint()
-
+ 
 '' Update the TeamStats worksheet with the *Done In Sprint* calcualtion
 ' The value is added both to the sparkline graph
 ' Then to the board for display
@@ -1043,15 +960,15 @@ Function funcJiraAdminDoneInSprint()
 ' Dependent on function: **NewSprintReport**
 '
 ''
-
+ 
 With ws_TeamStats
     .Range("BB43").Value = "TBC" ' Forumla to be updated
     .Range("AC43").Value = "TBC" ' Forumla to be updated
 End With
-
+ 
 End Function
 Function funcJiraAdminActiveTime()
-
+ 
 '' Update the TeamStats worksheet with the *Active Time %* calcualtion
 ' The value is added both to the sparkline graph
 ' Then to the board for display
@@ -1059,21 +976,21 @@ Function funcJiraAdminActiveTime()
 ' Dependent on function: funcGetSprintBurnDown & funcPostTeamsFind
 '
 ''
-
+ 
 With ws_TeamStats
     .Range("BB41").Value = 0 ' Forumla to be updated
     .Range("J43").Value = 0 ' Forumla to be updated
 End With
-
+ 
 End Function
-
-
+ 
+ 
 Private Function sprint_ParseString(ByVal sprint_String As String, sprint_Field As String) As String
-
+ 
 'This function parses out the sprint fields which are stored as a long comma seperate string within an array
-    
+   
     Dim StartPos, EndPos As Long
-    
+   
     StartPos = InStr(1, sprint_String, sprint_Field) + Len(sprint_Field) + 1
         Select Case sprint_Field
             Case "id"
@@ -1097,20 +1014,108 @@ Private Function sprint_ParseString(ByVal sprint_String As String, sprint_Field 
             Case Else
                 sprint_ParseString = ""
         End Select
-    
+   
     sprint_ParseString = Mid(sprint_String, StartPos, EndPos - StartPos)
-
+ 
 End Function
-
-
+ 
+ 
 Private Function funcRAG()
-
+ 
 '' This function should update the RAG triangles for each of the values displayed on the Dashboard
-
+ 
 End Function
-
+ 
 Private Function funcAsOfDateTeamName()
-
+ 
 '' This function should update the AsOfDate and Team Name displayed on the Dashboard
-
+ 
+End Function
+Private Function clearOldData(ByVal ws As Worksheet)
+ 
+Dim rngOldData As Range
+    With ws
+        Set rngOldData = .Range("A1").CurrentRegion
+        If rngOldData.Rows.Count > 1 Then
+            Set rngOldData = rngOldData.Resize(rngOldData.Rows.Count - 1).Offset(1)
+            rngOldData.ClearContents ' clear existing data
+        End If
+    End With
+   
+End Function
+Function CreateWorkSheet(ByVal name As String, Optional ByRef headings As Variant) As Worksheet
+ 
+'' Checks if a Worksheet exists and creates one if it doesn't
+ 
+Dim ws_exists As Boolean
+Dim ws As Worksheet
+ 
+    For Each ws In ActiveWorkbook.Worksheets
+        If ws.name = name Then
+            ws_exists = True
+            Exit For
+        Else
+            ws_exists = False
+        End If
+    Next ws
+ 
+    If ws_exists Then
+        Set CreateWorkSheet = ActiveWorkbook.Worksheets(name)
+    Else
+        Set CreateWorkSheet = ActiveWorkbook.Sheets.Add
+        CreateWorkSheet.name = name
+        If Not IsMissing(headings) Then
+            CreateWorkSheet.Range("A1").Resize(1, UBound(headings)).Value = headings ' assumes a one dimensional array; base 1
+        End If
+    End If
+ 
+End Function
+Function ws_TeamStats() As Worksheet
+    Set ws_TeamStats = CreateWorkSheet("ws_TeamStats")
+End Function
+Function ws_LeadTimeData() As Worksheet
+    Dim HeadingsArr As Variant
+    HeadingsArr = Array("id", "key", "issueType", "createdDate", "sprintStartDate", "releaseDate", "totalTime", "totalString")
+    Set ws_LeadTimeData = CreateWorkSheet("ws_LeadTimeData", HeadingsArr)
+End Function
+Function ws_WiPData() As Worksheet
+    Dim HeadingsArr As Variant
+    HeadingsArr = Array("id", "key", "issueType", "inProgressDate", "endProgressDate", "releaseDate")
+    Set ws_WiPData = CreateWorkSheet("ws_WiPData", HeadingsArr)
+End Function
+Function ws_IncompleteIssuesData() As Worksheet
+    Dim HeadingsArr As Variant
+    HeadingsArr = Array("id", "key", "issueType", "project", "epicKey", "storyPoints", "status", "statusCategory", "aggregateTimeEstimate", "sprintState")
+    Set ws_IncompleteIssuesData = CreateWorkSheet("ws_IncompleteIssuesData", HeadingsArr)
+End Function
+Function ws_VelocityData() As Worksheet
+    Dim HeadingsArr As Variant
+    HeadingsArr = Array("SprintId", "SprintName", "State", "Committed", "Completed")
+   Set ws_VelocityData = CreateWorkSheet("ws_VelocityData", HeadingsArr)
+End Function
+Function ws_TeamsData() As Worksheet
+    Dim HeadingsArr As Variant
+    HeadingsArr = Array("id", "title", "resourceId", "personId", "personId2", "JiraUserName")
+    Set ws_TeamsData = CreateWorkSheet("ws_TeamsData", HeadingsArr)
+End Function
+Function ws_Work() As Worksheet
+    Dim HeadingsArr As Variant
+    HeadingsArr = Array("key", "rapidViewId", "timeSpent")
+    Set ws_Work = CreateWorkSheet("ws_Work", HeadingsArr)
+End Function
+Function ws_ProjectData() As Worksheet
+    Dim HeadingsArr As Variant
+    HeadingsArr = Array("id", "key", "projectName", "category")
+    Set ws_ProjectData = CreateWorkSheet("ws_ProjectData", HeadingsArr)
+End Function
+Function TeamId() As String
+''Placeholder to define other values
+    TeamId = "81"
+End Function
+Function rapidViewId() As String
+    rapidViewId = InputBox("rapidViewId?")
+End Function
+Function boardJql() As String
+''Placeholder to define other values
+    boardJql = "Team = 81 AND CATEGORY = calm AND NOT issuetype in (Initiative) ORDER BY Rank ASC"
 End Function
