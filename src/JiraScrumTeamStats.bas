@@ -230,7 +230,7 @@ If funcGet3MonthsOfDoneJiras = Ok Then
    
     '' This next section cycles through all the sub-tasks and adds up the time logged to each
  
-    For Each rng_Parent In ws_LeadTimeData.Range("B2:B" & ws_LeadTimeData.Range("A1").End(xlDown).Row)
+    For Each rng_Parent In ws_LeadTimeData.Range("B2:B" & ws_LeadTimeData.Range("A1").End(xlDown).row)
         jql = "Parent = " & rng_Parent.Value
    
         apiFields = "key," _
@@ -284,12 +284,12 @@ If funcGet3MonthsOfDoneJiras = Ok Then
         Next
         '' Totals
         ws_LeadTimeData.Activate
-        For Each rng_author In ws_LeadTimeData.Range(Cells(1, 9), Cells(1, ws_LeadTimeData.Range("A1").End(xlToRight).Column))
-            ws_LeadTimeData.Cells(rng_Parent.Row, rng_author.Column) = collIssueKey(rng_Parent.Value)(rng_author.Value)
+        For Each rng_author In ws_LeadTimeData.Range(Cells(1, 9), Cells(1, ws_LeadTimeData.Range("A1").End(xlToRight).column))
+            ws_LeadTimeData.Cells(rng_Parent.row, rng_author.column) = collIssueKey(rng_Parent.Value)(rng_author.Value)
         Next rng_author
        
-        col = ws_LeadTimeData.Range("A1").End(xlToRight).Column
-        rng_Parent.Offset(0, 5).Value = Application.WorksheetFunction.Sum(Range(Cells(rng_Parent.Row, 9), Cells(rng_Parent.Row, col)))
+        col = ws_LeadTimeData.Range("A1").End(xlToRight).column
+        rng_Parent.Offset(0, 5).Value = Application.WorksheetFunction.Sum(Range(Cells(rng_Parent.row, 9), Cells(rng_Parent.row, col)))
         rng_Parent.Offset(0, 6).Value = Jira.jiratime(rng_Parent.Offset(0, 5).Value)
         Set JQL_SubTask_Request = Nothing
     Next rng_Parent
@@ -638,8 +638,8 @@ Dim TiPCol As Integer
 Dim TipRow As Long
  
 ws_LeadTimeData.Activate
-TiPCol = ws_LeadTimeData.Range("1:1").Find("TiP").Column
-TipRow = ws_LeadTimeData.Cells(1, TiPCol).End(xlDown).Row
+TiPCol = ws_LeadTimeData.Range("1:1").Find("TiP").column
+TipRow = ws_LeadTimeData.Cells(1, TiPCol).End(xlDown).row
  
 Set rng = ws_LeadTimeData.Range(Cells(2, TiPCol), Cells(TipRow, TiPCol))
  
@@ -681,13 +681,13 @@ Dim c As Range
  
 With ws_LeadTimeData
     .Activate
-    col = .Range("A1").End(xlToRight).Column + 1
+    col = .Range("A1").End(xlToRight).column + 1
     .Cells(1, col).Value = "leadTime"
  
-    Set rng_LeadTime = .Range(Cells(2, col), Cells(.Range("A1").End(xlDown).Row, col))
+    Set rng_LeadTime = .Range(Cells(2, col), Cells(.Range("A1").End(xlDown).row, col))
  
     For Each c In rng_LeadTime
-        c.Value = CDate(.Cells(c.Row, 6).Value) - CDate(Left(.Cells(c.Row, 4).Value, 10))
+        c.Value = CDate(.Cells(c.row, 6).Value) - CDate(Left(.Cells(c.row, 4).Value, 10))
     Next c
    
 End With
@@ -717,7 +717,7 @@ Dim cell As Range
  
 Set dict = New Dictionary
        
-For Each cell In ws_LeadTimeData.Range(Cells(2, 6), Cells(ws_LeadTimeData.Range("F1").End(xlDown).Row, 6))
+For Each cell In ws_LeadTimeData.Range(Cells(2, 6), Cells(ws_LeadTimeData.Range("F1").End(xlDown).row, 6))
     If cell.Value >= DateAdd("m", -1, "01/" & Month(Now()) & "/" & Year(Now())) Then ' only count if after start of previous month
         If cell.Value < CDate("01/" & Month(Now()) & "/" & Year(Now())) Then ' only count if before start of current month
             If Not dict.Exists(cell.Value) Then
@@ -749,13 +749,13 @@ Dim c As Range
  
 With ws_LeadTimeData
  
-    col = .Range("A1").End(xlToRight).Column + 1
+    col = .Range("A1").End(xlToRight).column + 1
     .Cells(1, col).Value = "TiP"
  
-    Set rng_TiP = .Range(Cells(2, col), Cells(.Range("A1").End(xlDown).Row, col))
+    Set rng_TiP = .Range(Cells(2, col), Cells(.Range("A1").End(xlDown).row, col))
  
     For Each c In rng_TiP
-        c.Value = CDate(.Cells(c.Row, 6).Value) - CDate(Left(.Cells(c.Row, 5).Value, 10))
+        c.Value = CDate(.Cells(c.row, 6).Value) - CDate(Left(.Cells(c.row, 5).Value, 10))
     Next c
    
 End With
@@ -776,13 +776,55 @@ Function funcResponsivenessWiP()
 ' Dependent on function: funcGetDoneJiras
 '
 ''
+Dim startDatesRange As Range, endDatesRange As Range
+Set startDatesRange = ws_WiPData.Range(Cells(2, 4), Cells(ws_WiPData.Range("D2").End(xlDown).row, 4))
+Set endDatesRange = ws_WiPData.Range(Cells(2, 5), Cells(ws_WiPData.Range("E2").End(xlDown).row, 5))
+
+'' Determine the headings of a grid as the min and max dates
+Dim HeadingsArr As Variant
+Dim HeadingsRange As Range
+HeadingsArr = ArrayOfDates(MinMaxDate(startDatesRange, "Min"), MinMaxDate(endDatesRange, "Max"))
+Set HeadingsRange = ws_WiPData.Range("H1").Resize(1, UBound(HeadingsArr))
+HeadingsRange.Value = HeadingsArr ' assumes a one dimensional array; base 1
+ 
+'' Create a 2 dimensional array to hold values for when the issue was actively in progress
+Dim r As Range, c As Range
+Dim WipGridArr As Variant
+ReDim WipGridArr(1 To startDatesRange.Rows.Count, 1 To HeadingsRange.Columns.Count) As Integer
+Dim x%, y As Integer
+Dim startDate&, endDate As Long
+y = 1
+For Each r In startDatesRange
+    x = 1
+    For Each c In HeadingsRange
+        startDate = DateValue(Left(r.Value, 10))
+        endDate = DateValue(Left(r.Offset(0, 1).Value, 10))
+        WipGridArr(y, x) = inProgressForDate(startDate, endDate, c.Value)
+        x = x + 1
+    Next c
+    y = y + 1
+Next r
+
+'' Write the results of the 2 dimensional array to the sheet
+Dim WipGridRange As Range
+Set WipGridRange = ws_WiPData.Range("H2").Resize(startDatesRange.Rows.Count, HeadingsRange.Columns.Count)
+WipGridRange.Value = WipGridArr
+
+'' Calculate the WiP for each issue
+For Each r In startDatesRange
+    r.Offset(0, 3) = WiP(r.row)
+Next r
  
 With ws_TeamStats
-    .Range("BB33").Value = 0 ' Forumla to be updated
-    .Range("AM16").Value = 0 ' Forumla to be updated
+    .Range("BB33").Value = WorksheetFunction.Average(ws_WiPData.Range(Cells(2, 7), Cells(startDatesRange.Rows.Count + 1, 7))) ' Forumla to be updated
+    .Range("AM16").Value = WorksheetFunction.Average(ws_WiPData.Range(Cells(2, 7), Cells(startDatesRange.Rows.Count + 1, 7))) ' Forumla to be updated
 End With
  
+MsgBox ("Done")
+ 
 End Function
+
+
 Function funcProductivityReleaseVelocity()
  
 '' Update the TeamStats worksheet with the *Release Velocity* data
@@ -1080,7 +1122,7 @@ Function ws_LeadTimeData() As Worksheet
 End Function
 Function ws_WiPData() As Worksheet
     Dim HeadingsArr As Variant
-    HeadingsArr = Array("id", "key", "issueType", "inProgressDate", "endProgressDate", "releaseDate")
+    HeadingsArr = Array("id", "key", "issueType", "inProgressDate", "endProgressDate", "releaseDate", "WiP")
     Set ws_WiPData = CreateWorkSheet("ws_WiPData", HeadingsArr)
 End Function
 Function ws_IncompleteIssuesData() As Worksheet
@@ -1119,3 +1161,80 @@ Function boardJql() As String
 ''Placeholder to define other values
     boardJql = "Team = 81 AND CATEGORY = calm AND NOT issuetype in (Initiative) ORDER BY Rank ASC"
 End Function
+Function ArrayOfDates(ByVal startDate As Long, ByVal endDate As Long) As Variant()
+
+    Dim arr() As Variant
+    Dim DateLoop As Variant
+    Dim i%, totalDays As Integer
+    DateLoop = startDate
+    totalDays = endDate - startDate
+    ReDim ArrayOfDates(1 To totalDays + 1)
+    ReDim arr(1 To totalDays + 1)
+    i = 1
+    Do While DateLoop <= endDate
+        arr(i) = DateLoop
+        DateLoop = DateLoop + 1
+        i = i + 1
+    Loop
+    ArrayOfDates = arr
+    
+End Function
+
+Function MinMaxDate(ByVal dateRange As Range, ByVal MType As String) As Variant
+    Dim c As Range
+    Dim arr() As Long
+    Dim totalDays As Integer
+    totalDays = dateRange.Rows.Count
+    ReDim arr(1 To totalDays)
+    Dim i As Integer
+    i = 1
+    For Each c In dateRange
+        arr(i) = DateValue(Left(c.Value, 10))
+        i = i + 1
+    Next c
+    
+    If MType = "Max" Then
+        MinMaxDate = WorksheetFunction.Max(arr)
+    ElseIf MType = "Min" Then
+        MinMaxDate = WorksheetFunction.Min(arr)
+    Else
+        MinMaxDate = 0
+    End If
+    
+End Function
+Function inProgressForDate(ByVal startDate As Long, ByVal endDate As Long, currentDate As Long) As Integer
+    If currentDate >= startDate Then
+        If currentDate <= endDate Then
+            inProgressForDate = 1
+        Else
+            inProgressForDate = 0
+        End If
+    Else
+        inProgressForDate = 0
+    End If
+End Function
+
+Function WiP(ByVal row As Long) As Integer
+    
+    Dim headers As Range
+    Set headers = ws_WiPData.Range(Cells(1, 8), Cells(1, ws_WiPData.Range("H1").End(xlToRight).column))
+
+    Dim countRows As Long
+    countRows = ws_WiPData.Range("H1").End(xlDown).row - 1
+    
+    Dim arr() As Integer
+    ReDim arr(1 To headers.Columns.Count)
+    Dim c As Range
+    Dim i As Integer
+    i = 1
+    For Each c In headers
+        If c.Offset(row).Value = 1 Then
+            arr(i) = WorksheetFunction.Sum(c.Resize(countRows, 1).Offset(1))
+        End If
+        i = i + 1
+    Next c
+    
+    WiP = WorksheetFunction.Max(arr)
+    
+End Function
+
