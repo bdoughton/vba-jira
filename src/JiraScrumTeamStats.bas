@@ -191,7 +191,6 @@ If funcGet3MonthsOfDoneJiras = Ok Then
                     .Cells(r, 6).Value = JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate") 'Always use the 1st fixVersion, even if there are multiple
                 Else
                     .Cells(r, 6).Value = Left(JQL_Search_Response.Data("issues")(i)("fields")("resolutiondate"), 10) 'use the resolution date if there is no fixVersion. Note: this can lead to incorrect deployment frequency
-                   
                 End If
                 For Each history In JQL_Search_Response.Data("issues")(i)("changelog")("histories")
                     c = 1 'reset the change item to 1
@@ -377,8 +376,149 @@ If funcGetIncompleteJiras = Ok Then
 End If
  
 End Function
-Private Function funcGetVelocity(ByVal rapidViewId As String) As WebStatusCode
+Private Function funcGet12MonthDoneJiras(ByVal boardJql As String, ByRef startAtVal, r As Integer) As WebStatusCode
  
+''
+' Source 12 months of Jiras that done state and not subTasks
+ 
+'
+' @param {String} boardJql
+' @param {Integer} startAtVal, r
+' @write {ws_DoneData}
+' @apicalls 1x{get search standardissuetypes}
+' @return {WebStatusCode} status of apicall
+''
+ 
+'' Known limitations with this macro:
+' (1) needs to be updated to run for a smaller number of maxresults
+ 
+Dim jql As String
+jql = "fixversion changed after -60w AND " & _
+        "fixVersion is not EMPTY AND " & _
+        "Sprint is not EMPTY AND " & _
+        "NOT issuetype in (Theme,Initiative,Epic,Test,subTaskIssueTypes()) AND " & _
+        "statusCategory in (Done) AND " & _
+        boardJql
+       
+Dim apiFields As String
+apiFields = "key," _
+        & "issuetype," _
+        & "fixVersions"
+           
+'Define the new Request
+Dim JQL_PBI_Request As New WebRequest
+With JQL_PBI_Request
+    .Resource = "api/2/search"
+    .Method = WebMethod.HttpGet
+    .AddQuerystringParam "jql", jql
+    .AddQuerystringParam "fields", apiFields
+    .AddQuerystringParam "startAt", startAtVal
+    .AddQuerystringParam "maxResults", "1000"
+    .AddQuerystringParam "expand", "changelog"
+End With
+           
+Dim JQL_PBI_Search_Response As New JiraResponse
+Dim JQL_Search_Response As New WebResponse
+ 
+Set JQL_Search_Response = JQL_PBI_Search_Response.JiraCall(JQL_PBI_Request)
+ 
+funcGet12MonthDoneJiras = JQL_Search_Response.StatusCode
+ 
+Dim i%, s As Integer
+Dim Item As Object
+ 
+If funcGet12MonthDoneJiras = Ok Then
+    clearOldData ws_DoneData
+    startAtVal = startAtVal + 1000 'Increment the next start position based on maxResults above
+    i = 1 'reset the issue to 1
+    For Each Item In JQL_Search_Response.Data("issues")
+        If CDate(JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate")) >= DateAdd("m", -12, "01/" & Month(Now()) & "/" & Year(Now())) Then 'Only include if the release date was in the last 12 months
+            With ws_DoneData
+                .Cells(r, 1).Value = JQL_Search_Response.Data("issues")(i)("id")
+                .Cells(r, 2).Value = JQL_Search_Response.Data("issues")(i)("key")
+                .Cells(r, 3).Value = JQL_Search_Response.Data("issues")(i)("fields")("issuetype")("name")
+                If JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate") > JQL_Search_Response.Data("issues")(i)("fields")("created") Then
+                    .Cells(r, 4).Value = JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate") 'Always use the 1st fixVersion, even if there are multiple
+                Else
+                    .Cells(r, 4).Value = Left(JQL_Search_Response.Data("issues")(i)("fields")("resolutiondate"), 10) 'use the resolution date if there is no fixVersion.
+                End If
+            End With
+            r = r + 1 'increment the row
+        End If
+        i = i + 1 'increment the issue
+    Next Item
+End If
+ 
+End Function
+Private Function funcGetDefects(ByVal boardJql As String, ByRef startAtVal, r As Integer) As WebStatusCode
+ 
+''
+' Source Bugs and Defefcts that have been created in the last 3 months
+'
+' @param {String} boardJql
+' @param {Integer} startAtVal, r
+' @write {ws_DefectData}
+' @apicalls 1x{get search standardissuetypes}
+' @return {WebStatusCode} status of apicall
+''
+ 
+'' Known limitations with this macro:
+' (1) needs to be updated to run for a smaller number of maxresults
+ 
+Dim jql As String
+jql = "issuetype in (Bug,Defect) AND created >= startOfMonth(-3) AND " & _
+        boardJql
+       
+Dim apiFields As String
+apiFields = "key," _
+        & "issuetype," _
+        & "versions," _
+        & "fixVersions"
+           
+'Define the new Request
+Dim JQL_PBI_Request As New WebRequest
+With JQL_PBI_Request
+    .Resource = "api/2/search"
+    .Method = WebMethod.HttpGet
+    .AddQuerystringParam "jql", jql
+    .AddQuerystringParam "fields", apiFields
+    .AddQuerystringParam "startAt", startAtVal
+    .AddQuerystringParam "maxResults", "1000"
+    .AddQuerystringParam "expand", "changelog"
+End With
+           
+Dim JQL_PBI_Search_Response As New JiraResponse
+Dim JQL_Search_Response As New WebResponse
+ 
+Set JQL_Search_Response = JQL_PBI_Search_Response.JiraCall(JQL_PBI_Request)
+ 
+funcGetDefects = JQL_Search_Response.StatusCode
+ 
+Dim i%, s As Integer
+Dim Item As Object
+  
+If funcGetDefects = Ok Then
+    clearOldData ws_DefectData
+    startAtVal = startAtVal + 1000 'Increment the next start position based on maxResults above
+    i = 1 'reset the issue to 1
+    For Each Item In JQL_Search_Response.Data("issues")
+            With ws_DefectData
+                .Cells(r, 1).Value = JQL_Search_Response.Data("issues")(i)("id")
+                .Cells(r, 2).Value = JQL_Search_Response.Data("issues")(i)("key")
+                .Cells(r, 3).Value = JQL_Search_Response.Data("issues")(i)("fields")("issuetype")("name")
+                If JQL_Search_Response.Data("issues")(i)("fields").Exists("versions") Then
+                    .Cells(r, 4).Value = JQL_Search_Response.Data("issues")(i)("fields")("versions")(1)("name") 'Always use the 1st Affects Version, even if there are multiple
+                    .Cells(r, 5).Value = JQL_Search_Response.Data("issues")(i)("fields")("versions")(1)("releaseDate") 'Always use the 1st Affects Version, even if there are multiple
+                End If
+            End With
+            r = r + 1 'increment the row
+        i = i + 1 'increment the issue
+    Next Item
+End If
+ 
+End Function
+Private Function funcGetVelocity(ByVal rapidViewId As String) As WebStatusCode
+
 ''
 ' Source the last velocity data from the team's last seven sprints
 '
@@ -694,10 +834,10 @@ End With
  
  
 With ws_TeamStats
-    .Range("BB30").Value = Excel.WorksheetFunction.Average(rng_LeadTime)
-    .Range("AD10").Value = Round(Excel.WorksheetFunction.Average(rng_LeadTime), 0)
+    .Range("BB30").Value = WorksheetFunction.Average(rng_LeadTime)
+    .Range("AD10").Value = Round(WorksheetFunction.Average(rng_LeadTime), 0)
 End With
- 
+
 End Function
 Function funcResponsivenessDeploymentFrequency()
  
@@ -762,8 +902,8 @@ End With
  
  
 With ws_TeamStats
-    .Range("BB32").Value = Excel.WorksheetFunction.Average(rng_TiP)
-    .Range("AD16").Value = Round(Excel.WorksheetFunction.Average(rng_TiP), 0)
+    .Range("BB32").Value = WorksheetFunction.Average(rng_TiP)
+    .Range("AD16").Value = Round(WorksheetFunction.Average(rng_TiP), 0)
 End With
  
 End Function
@@ -816,8 +956,8 @@ For Each r In startDatesRange
 Next r
  
 With ws_TeamStats
-    .Range("BB33").Value = WorksheetFunction.Average(ws_WiPData.Range(Cells(2, 7), Cells(startDatesRange.Rows.Count + 1, 7))) ' Forumla to be updated
-    .Range("AM16").Value = WorksheetFunction.Average(ws_WiPData.Range(Cells(2, 7), Cells(startDatesRange.Rows.Count + 1, 7))) ' Forumla to be updated
+    .Range("BB33").Value = WorksheetFunction.Average(ws_WiPData.Range(Cells(2, 7), Cells(startDatesRange.Rows.Count + 1, 7)))
+    .Range("AM16").Value = WorksheetFunction.Average(ws_WiPData.Range(Cells(2, 7), Cells(startDatesRange.Rows.Count + 1, 7)))
 End With
  
 MsgBox ("Done")
@@ -833,18 +973,45 @@ Function funcProductivityReleaseVelocity()
 '
 ''
  
+Dim c As Range
+Dim releaseDateRange As Range
+Dim issueTypeRange As Range
+Dim currentReleaseDate As Long
+Dim countOfReleases As Integer
+Dim dict As Dictionary
+Set dict = New Dictionary
+
+currentReleaseDate = 0
+Set releaseDateRange = ws_LeadTimeData.Range(Cells(2, 6), Cells(ws_LeadTimeData.Range("F2").End(xlDown).row, 6))
+Set issueTypeRange = ws_LeadTimeData.Range(Cells(2, 3), Cells(ws_LeadTimeData.Range("C2").End(xlDown).row, 3))
+
+For Each c In releaseDateRange
+    If Not dict.Exists(c.Value) Then
+        dict.Add c.Value, 0
+    End If
+    If testDate(c) > currentReleaseDate Then
+        If testDate(c) < CLng(Date) Then
+            currentReleaseDate = testDate(c)
+        End If
+    End If
+Next c
+
+countOfReleases = dict.Count
+
 With ws_TeamStats
-    .Range("AT5").Value = 0 ' Forumla to be updated - Feature Velocity
-    .Range("AU5").Value = 0 ' Forumla to be updated - Defects Velocity
-    .Range("AV5").Value = 0 ' Forumla to be updated - Risks Velocity
-    .Range("AW5").Value = 0 ' Forumla to be updated - Debts Velocity
-    .Range("AX5").Value = 0 ' Forumla to be updated - Enablers Velocity
-   
-    .Range("AT6").Value = 0 ' Forumla to be updated - Feature Baseline
-    .Range("AU6").Value = 0 ' Forumla to be updated - Defects Baseline
-    .Range("AV6").Value = 0 ' Forumla to be updated - Risks Baseline
-    .Range("AW6").Value = 0 ' Forumla to be updated - Debts Baseline
-    .Range("AX6").Value = 0 ' Forumla to be updated - Enablers Baseline
+    .Range("AT4:AX4").Value = Array("Feature", "Defects", "Risks", "Debts", "Enablers")
+    .Range("AS5").Value = "Velocity"
+    .Range("AT5").Value = WorksheetFunction.CountIfs(issueTypeRange, "Story", releaseDateRange, currentReleaseDate) ' Feature Velocity
+    .Range("AU5").Value = WorksheetFunction.CountIfs(issueTypeRange, "Bug", releaseDateRange, currentReleaseDate) ' Defects Velocity
+    .Range("AV5").Value = WorksheetFunction.CountIfs(issueTypeRange, "Risks", releaseDateRange, currentReleaseDate) ' Risks Velocity
+    .Range("AW5").Value = WorksheetFunction.CountIfs(issueTypeRange, "Debts", releaseDateRange, currentReleaseDate) ' Debts Velocity
+    .Range("AX5").Value = WorksheetFunction.CountIfs(issueTypeRange, "Task", releaseDateRange, currentReleaseDate) ' Enablers Velocity
+    .Range("AS6").Value = "Baseline"
+    .Range("AT6").Value = WorksheetFunction.CountIf(issueTypeRange, "Story") / countOfReleases ' Feature Baseline
+    .Range("AU6").Value = WorksheetFunction.CountIf(issueTypeRange, "Bug") / countOfReleases ' Defects Baseline
+    .Range("AV6").Value = WorksheetFunction.CountIf(issueTypeRange, "Risks") / countOfReleases ' Risks Baseline
+    .Range("AW6").Value = WorksheetFunction.CountIf(issueTypeRange, "Debts") / countOfReleases ' Debts Baseline
+    .Range("AX6").Value = WorksheetFunction.CountIf(issueTypeRange, "Task") / countOfReleases ' Enablers Baseline
 End With
  
 End Function
@@ -868,16 +1035,112 @@ Function funcProductivityDistribution()
  
 '' Update the TeamStats worksheet with the *Distribution* data
 '
-' Dependent on function: funcGetDoneJiras & funcGetIncompleteJiras
+' Dependent on function: funcGet12MonthDoneJiras & funcGetIncompleteJiras
 '
 ''
  
-''' Should not rely on funcGetDoneJiras as this is only last 3 months of data. Need to go back 12 months so new api call
- 
- 
+Dim Arr(1 To 5, 1 To 13) As Long
+Dim x%, y As Integer
+Dim issueTypeDoneRange As Range
+Dim issueTypeBacklogRange As Range
+Dim issueType As String
+Dim releaseDate As Long
+Dim i As Range
+
+ws_LeadTimeData.Activate
+Set issueTypeDoneRange = ws_LeadTimeData.Range(Cells(2, 3), Cells(ws_LeadTimeData.Range("C2").End(xlDown).row, 3))
+ws_IncompleteIssuesData.Activate
+Set issueTypeBacklogRange = ws_IncompleteIssuesData.Range(Cells(2, 3), Cells(ws_IncompleteIssuesData.Range("C2").End(xlDown).row, 3))
+
+For Each i In issueTypeDoneRange
+    issueType = i.Value
+    Select Case issueType
+    Case "Story"
+        y = 1
+    Case "Bug"
+        y = 2
+    Case "Risks"
+        y = 3
+    Case "Debts"
+        y = 4
+    Case "Task"
+        y = 5
+    Case Else
+        y = 0
+    End Select
+    releaseDate = i.Offset(0, 3).Value
+    Select Case releaseDate
+    Case WorksheetFunction.EoMonth(Date, -13) To WorksheetFunction.EoMonth(Date, -12)
+        x = 1
+    Case WorksheetFunction.EoMonth(Date, -12) To WorksheetFunction.EoMonth(Date, -11)
+        x = 2
+    Case WorksheetFunction.EoMonth(Date, -11) To WorksheetFunction.EoMonth(Date, -10)
+        x = 3
+    Case WorksheetFunction.EoMonth(Date, -10) To WorksheetFunction.EoMonth(Date, -9)
+        x = 4
+    Case WorksheetFunction.EoMonth(Date, -9) To WorksheetFunction.EoMonth(Date, -8)
+        x = 5
+    Case WorksheetFunction.EoMonth(Date, -8) To WorksheetFunction.EoMonth(Date, -7)
+        x = 6
+    Case WorksheetFunction.EoMonth(Date, -7) To WorksheetFunction.EoMonth(Date, -6)
+        x = 7
+    Case WorksheetFunction.EoMonth(Date, -6) To WorksheetFunction.EoMonth(Date, -5)
+        x = 8
+    Case WorksheetFunction.EoMonth(Date, -5) To WorksheetFunction.EoMonth(Date, -4)
+        x = 9
+    Case WorksheetFunction.EoMonth(Date, -4) To WorksheetFunction.EoMonth(Date, -3)
+        x = 10
+    Case WorksheetFunction.EoMonth(Date, -3) To WorksheetFunction.EoMonth(Date, -2)
+        x = 11
+    Case WorksheetFunction.EoMonth(Date, -2) To WorksheetFunction.EoMonth(Date, -1)
+        x = 12
+    Case Else
+        x = 0
+    End Select
+    If x > 0 And y > 0 Then Arr(y, x) = Arr(y, x) + 1
+Next i
+
+For Each i In issueTypeBacklogRange
+    issueType = i.Value
+    Select Case issueType
+    Case "Story"
+        y = 1
+    Case "Bug"
+        y = 2
+    Case "Risks"
+        y = 3
+    Case "Debts"
+        y = 4
+    Case "Task"
+        y = 5
+    Case Else
+        y = 0
+    End Select
+    x = 13
+    If y > 0 Then Arr(y, x) = Arr(y, x) + 1
+Next i
+
 With ws_TeamStats
-    .Range("AT11:BF15").Value = 0 ' Forumla to be updated - Data
-    .Range("AT16:BE16").Value = "Date" ' Formula to be updated - Release Months
+    .Range("AS11").Value = "Features"
+    .Range("AS12").Value = "Defects"
+    .Range("AS13").Value = "Risks"
+    .Range("AS14").Value = "Debts"
+    .Range("AS15").Value = "Enablers"
+    .Range("AT11:BF15").Value = Arr ' Forumla to be updated - Data
+    .Range("AT16:BF16").Value = Array(WorksheetFunction.EoMonth(Date, -12), _
+                                                            WorksheetFunction.EoMonth(Date, -11), _
+                                                            WorksheetFunction.EoMonth(Date, -10), _
+                                                            WorksheetFunction.EoMonth(Date, -9), _
+                                                            WorksheetFunction.EoMonth(Date, -8), _
+                                                            WorksheetFunction.EoMonth(Date, -7), _
+                                                            WorksheetFunction.EoMonth(Date, -6), _
+                                                            WorksheetFunction.EoMonth(Date, -5), _
+                                                            WorksheetFunction.EoMonth(Date, -4), _
+                                                            WorksheetFunction.EoMonth(Date, -3), _
+                                                            WorksheetFunction.EoMonth(Date, -2), _
+                                                            WorksheetFunction.EoMonth(Date, -1), _
+                                                            "Backlog") ' Formula to be updated - Release Months
+    .Range("AT16:BE16").NumberFormat = "mmm yy"
 End With
  
 End Function
@@ -887,13 +1150,21 @@ Function funcQualityTimeToResolve()
 ' The value is added both to the sparkline graph
 ' Then the to the board for display
 '
-' Dependent on function: funcGetDoneJiras
+' Dependent on function: funcGetDoneJiras & funcResponsivenessLeadTime
 '
 ''
+Dim leadTimeRange As Range
+Dim issueTypeRange As Range
+Dim col As Integer
+
+col = ws_LeadTimeData.Range("1:1").Find("leadTime").column
+
+Set leadTimeRange = ws_LeadTimeData.Range(Cells(2, col), Cells(ws_LeadTimeData.Range("F2").End(xlDown).row, col))
+Set issueTypeRange = ws_LeadTimeData.Range(Cells(2, 3), Cells(ws_LeadTimeData.Range("C2").End(xlDown).row, 3))
  
 With ws_TeamStats
-    .Range("BB37").Value = 0 ' Forumla to be updated
-    .Range("AM24").Value = 0 ' Forumla to be updated
+    .Range("BB37").Value = WorksheetFunction.AverageIf(issueTypeRange, "Bug", leadTimeRange)
+    .Range("AM24").Value = Round(WorksheetFunction.AverageIf(issueTypeRange, "Bug", leadTimeRange), 0)
 End With
  
 End Function
@@ -903,9 +1174,11 @@ Function funcQualityDefectDentisy()
 ' The value is added both to the sparkline graph
 ' Then the to the board for display
 '
-' Dependent on function: **AffectsVersionJQL**
+' Dependent on function: funcGetDefects
 '
 ''
+
+'Count of all issues on the ws_DefectData sheet / the man days over the same period (start of current month -3)
  
 With ws_TeamStats
     .Range("BB38").Value = "TBC" ' Forumla to be updated
@@ -919,13 +1192,23 @@ Function funcQualityFailRate()
 ' The value is added both to the sparkline graph
 ' Then the to the board for display
 '
-' Dependent on function: **AffectsVersionJQL**
+' Dependent on function: funcGetDefects & funcGet3MonthsOfDoneJiras
 '
 ''
+
+' total number of bugs from the last 3 months of releases / total number of issuesreleased over the same period
+
+Dim totalBugs&, totalPBIs As Long
+Dim period As Long
  
+period = DateAdd("m", -3, DateSerial(Year(Date), Month(Date), 1))
+ 
+totalBugs = WorksheetFunction.CountIf(ws_DefectData.Range("E:E"), ">" & period)
+totalPBIs = WorksheetFunction.CountIf(ws_LeadTimeData.Range("F:F"), ">" & period)
+
 With ws_TeamStats
-    .Range("BB39").Value = "TBC" ' Forumla to be updated
-    .Range("AM36").Value = "TBC" ' Forumla to be updated
+    .Range("BB39").Value = totalBugs / totalPBIs
+    .Range("AM36").Value = Round(totalBugs / totalPBIs, 1)
 End With
  
 End Function
@@ -1150,6 +1433,16 @@ Function ws_ProjectData() As Worksheet
     HeadingsArr = Array("id", "key", "projectName", "category")
     Set ws_ProjectData = CreateWorkSheet("ws_ProjectData", HeadingsArr)
 End Function
+Function ws_DoneData() As Worksheet
+    Dim HeadingsArr As Variant
+    HeadingsArr = Array("id", "key", "issueType", "releaseDate")
+    Set ws_DoneData = CreateWorkSheet("ws_DoneData", HeadingsArr)
+End Function
+Function ws_DefectData() As Worksheet
+    Dim HeadingsArr As Variant
+    HeadingsArr = Array("id", "key", "issueType", "affectsVersion", "affectsVersionReleaseDate")
+    Set ws_DefectData = CreateWorkSheet("ws_DefectData", HeadingsArr)
+End Function
 Function TeamId() As String
 ''Placeholder to define other values
     TeamId = "81"
@@ -1163,40 +1456,40 @@ Function boardJql() As String
 End Function
 Function ArrayOfDates(ByVal startDate As Long, ByVal endDate As Long) As Variant()
 
-    Dim arr() As Variant
+    Dim Arr() As Variant
     Dim DateLoop As Variant
     Dim i%, totalDays As Integer
     DateLoop = startDate
     totalDays = endDate - startDate
     ReDim ArrayOfDates(1 To totalDays + 1)
-    ReDim arr(1 To totalDays + 1)
+    ReDim Arr(1 To totalDays + 1)
     i = 1
     Do While DateLoop <= endDate
-        arr(i) = DateLoop
+        Arr(i) = DateLoop
         DateLoop = DateLoop + 1
         i = i + 1
     Loop
-    ArrayOfDates = arr
+    ArrayOfDates = Arr
     
 End Function
 
 Function MinMaxDate(ByVal dateRange As Range, ByVal MType As String) As Variant
     Dim c As Range
-    Dim arr() As Long
+    Dim Arr() As Long
     Dim totalDays As Integer
     totalDays = dateRange.Rows.Count
-    ReDim arr(1 To totalDays)
+    ReDim Arr(1 To totalDays)
     Dim i As Integer
     i = 1
     For Each c In dateRange
-        arr(i) = DateValue(Left(c.Value, 10))
+        Arr(i) = DateValue(Left(c.Value, 10))
         i = i + 1
     Next c
     
     If MType = "Max" Then
-        MinMaxDate = WorksheetFunction.Max(arr)
+        MinMaxDate = WorksheetFunction.Max(Arr)
     ElseIf MType = "Min" Then
-        MinMaxDate = WorksheetFunction.Min(arr)
+        MinMaxDate = WorksheetFunction.Min(Arr)
     Else
         MinMaxDate = 0
     End If
@@ -1222,19 +1515,24 @@ Function WiP(ByVal row As Long) As Integer
     Dim countRows As Long
     countRows = ws_WiPData.Range("H1").End(xlDown).row - 1
     
-    Dim arr() As Integer
-    ReDim arr(1 To headers.Columns.Count)
+    Dim Arr() As Integer
+    ReDim Arr(1 To headers.Columns.Count)
     Dim c As Range
     Dim i As Integer
     i = 1
     For Each c In headers
         If c.Offset(row).Value = 1 Then
-            arr(i) = WorksheetFunction.Sum(c.Resize(countRows, 1).Offset(1))
+            Arr(i) = WorksheetFunction.Sum(c.Resize(countRows, 1).Offset(1))
         End If
         i = i + 1
     Next c
     
-    WiP = WorksheetFunction.Max(arr)
+    WiP = WorksheetFunction.Max(Arr)
     
 End Function
+Function testDate(ByVal cell As Range) As Long
+    ''returns the excel date as a Long from a cell value that is formated as a test string 'i.e. "30/05/2020" -->43981
+    testDate = CLng(DateValue(cell.Value))
+End Function
+
 
