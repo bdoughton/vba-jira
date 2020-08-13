@@ -1,26 +1,55 @@
 Attribute VB_Name = "Jira"
 ''
-' Jira v0.1
+' Jira v0.2
 ' (c) Ben Doughton - https://github.com/bdoughton/vba-jira
 '
-' Includes:
+' @Includes:
+'               CheckJiraBaseUrl         - validates the format of the url passed to it
+'               JiraBaseUrl                   - returns the stored base url or requests one if not stored in properties
+'               UpdateBaseUrl             - updates a new base url from a Ribbon X control
+'               IsLoggedIn                   - checks if a username and password are stored in properties
+'               GetJiraLoginResponse  - get request to Jira to validate user login redentials and stores them in properties if valid
+'               UpdateUser                  - run the LoginUser from a Ribbon X control
+'               LoginUser                    - requests login details and calls the GetJiraLoginResponse
+'               date2epoch                 - converts a date to an epoch value (as used by Jira)
+'               epoch2date                 - converts an epoch value (as used by Jira) to a date
 '
-' - CheckJiraBaseUrl - validates the format of the url passed to it
-' - JiraBaseUrl - returns the stored base url or requests one if not stored in properties
-' - UpdateBaseUrl - updates a new base url from a Ribbon X control
-' - IsLoggedIn - checks if a username and password are stored in properties
-' - GetJiraLoginResponse - get request to Jira to validate user login redentials and stores them in properties if valid
-' - UpdateUser - run the LoginUser from a Ribbon X control
-' - LoginUser - requests login details and calls the GetJiraLoginResponse
+' @Dependencies:
+'               Worksheet - vbaJiraProperties
+'               Mod - InputPassword
+'               Mod - WebHelpers
+'               Class - WebClient
+'               Class - WebRequest
+'               Class - WebResponse
+'               Class - HttpBasicAuthenticator
+'               RibbonX - Jira
 '
 ' @module Jira
 ' @author bdoughton@me.com
 ' @license GNU General Public License v3.0 (https://opensource.org/licenses/GPL-3.0)
 '' ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
+
 Option Explicit
+
+''Jira CustomFields
+Public Const ExternalIssueID As String = "customfield_10116"
+Public Const OriginalDueDate As String = "customfield_11604"
+Public Const AccountableDepartment As String = "customfield_11700"
+Public Const sprints As String = "customfield_10004"
+Public Const parentlink As String = "customfield_11801"
+Public Const epiclink As String = "customfield_10006"
+Public Const Team As String = "customfield_11800"
+Public Const storypoints As String = "customfield_10002"
+Public Const epiccolour As String = "customfield_10008"
+
 Public userName As String
 Public userPassword As String
+
 Function CheckJiraBaseUrl(ByVal url As String) As Boolean
+
+    If StrPtr(url) = 0 Then 'the user pressed "cancel"
+        Exit Function
+    End If
 
     If url Like "http*://*/rest/" Then
         CheckJiraBaseUrl = True
@@ -34,9 +63,9 @@ End Function
 Function JiraBaseUrl() As String
     
 ' If the JiraBaseUrl property is "" then request the user to enter a valid base url
-    
+
     If vbaJiraProperties.Range("B1").Value = "" Then
-        If Not CheckJiraBaseUrl(InputBox("Please enter the Jira Base Url:")) Then
+        If Not CheckJiraBaseUrl(InputBox("Please enter the Jira Base Url:", "Jira", "http://localhost:8080/rest/")) Then
             Exit Function
         End If
     End If
@@ -45,7 +74,13 @@ Function JiraBaseUrl() As String
     
 End Function
 Sub UpdateBaseUrl(control As IRibbonControl)
-    CheckJiraBaseUrl (InputBox("Please enter the new Jira Base Url:"))
+    Dim defaultUrl As String
+    If vbaJiraProperties.Range("B1").Value = "" Then
+        defaultUrl = "http://localhost:8080/rest/"
+    Else
+        defaultUrl = vbaJiraProperties.Range("B1").Value
+    End If
+    CheckJiraBaseUrl (InputBox("Please enter the new Jira Base Url:", "Jira", defaultUrl))
 End Sub
 Function IsLoggedIn() As Boolean
 
@@ -102,13 +137,18 @@ End Sub
 Function LoginUser() As Boolean
 
         'Request login details
-        userName = InputBox("User Name:")
+        userName = InputBox("Please enter your Jira user name:", "User Name")
         If userName = "" Then
             LoginUser = False
             Exit Function
         End If
         
-        userPassword = InputBox("Password:")
+        #If Mac Then
+            userPassword = InputBox("Mac Password:", "Password")
+        #Else
+            userPassword = InputBoxDK("Please enter your Jira password:", "Password")
+        #End If
+        
         If userPassword = "" Then
             LoginUser = False
             Exit Function
@@ -121,5 +161,49 @@ Function LoginUser() As Boolean
             LoginUser = False
         End If
     
+End Function
+Function jiratime(ByVal timeseries As Double) As String
+
+'' This function converts a time in milliseconds (as used by Jira) into a string value of weeks, days and hours
+
+Dim h As Double
+Dim w As Double
+Dim d As Double
+
+h = WorksheetFunction.RoundDown(timeseries / 3600, 0)
+
+Select Case h
+    Case Is >= 40
+        w = WorksheetFunction.RoundDown(h / 40, 0)
+        d = WorksheetFunction.RoundDown((h Mod 40) / 8, 0)
+        h = h Mod 40 Mod 8
+        If d > 0 Then
+            If h > 0 Then
+                jiratime = w & "w " & d & "d " & h & "h"
+            Else
+                jiratime = w & "w " & d & "d "
+            End If
+        Else
+            jiratime = w & "w " & h & "h"
+        End If
+    Case Is >= 8
+        d = WorksheetFunction.RoundDown(h / 8, 0)
+        h = h Mod 8
+        If h > 0 Then
+            jiratime = d & "d " & h & "h"
+        Else
+            jiratime = d & "d "
+        End If
+    Case Else
+        jiratime = h & "h"
+        
+End Select
+End Function
+' result is GMT/UTC
+Function epoch2date(myEpoch)
+epoch2date = DateAdd("s", myEpoch / 1000, "01/01/1970 00:00:00")
+End Function
+Function date2epoch(myDate)
+date2epoch = DateDiff("s", "01/01/1970 00:00:00", myDate) * 1000
 End Function
 

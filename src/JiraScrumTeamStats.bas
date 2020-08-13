@@ -28,6 +28,7 @@ Public RemainingSprintTime As Long
 Public DaysInSprint As Long
 Public LastSprintName As String
 Public LastSprintId As Integer
+Public agileBoardId As String
 
 Sub GetTeamStats(control As IRibbonControl)
  
@@ -35,7 +36,12 @@ Sub GetTeamStats(control As IRibbonControl)
 ' This should be run by the user and sets up all the underlying api calls to get the teams stats
  
 '' Known limitations with this macro:
-' (1) Work in progress - run each call individually by commenting out the other api calls
+' (0) Still a Work in Progress - use with caution!
+' (1) Needs some user feedback (i.e. progress bar) to show progress
+' (2) Some of the API calls would benefit from being looped over a smaller set of maxResults
+' (3) Error logging
+' (4) Capture veriables, such as TeamId and allow for user configuration
+' (5) Validate that the rapidViewId has time tracking available before running certain functions
  
 'Pause calculations and screen updating and make read-only worksheets visible
 'These actions are reversed at the end of the macro
@@ -52,27 +58,47 @@ Application.Calculation = xlCalculationManual
         If Not LoginUser Then Exit Sub
     End If
    
-    ''Rollstats True of False
-    'Dim blnRoll As Boolean
-    'If MsgBox("Do you want to roll the previous data?", vbYesNo) = vbYes Then
-    '    blnRoll = True
-    'Else
-    '    blnRoll = False
-    'End If
-    'funcRollStats (blnRoll)
- 
+    'Rollstats True of False (copy across values from the last time the macros were run or False will overwrite)
+    Dim blnRoll As Boolean
+    If MsgBox("Do you want to roll the previous data?", vbYesNo) = vbYes Then
+        blnRoll = True
+    Else
+        blnRoll = False
+    End If
+    funcRollStats (blnRoll)
     
-    ''Fetch Data from Api
-    Dim callResult(1 To 5) As WebStatusCode
+    ''Fetch Data from Api Calls
+    Dim callResult(1 To 7) As WebStatusCode
     callResult(1) = funcGet3MonthsOfDoneJiras(boardJql, "In Progress", "Done", 0, 2)
     callResult(2) = funcGetIncompleteJiras(boardJql, 0, 2)
-    callResult(3) = funcGetVelocity(rapidViewId)
-    callResult(4) = funcPostTeamsFind()
-'
-'    ''Need to save the RemainingSprintTime to the right cell
-    callResult(5) = funcGetSprintBurnDown(rapidViewId, CStr(ws_VelocityData.Range("A2").Value))
+    callResult(3) = funcGet12MonthDoneJiras(boardJql, 0, 2)
+    callResult(4) = funcGetDefects(boardJql, 0, 2)
+    callResult(5) = funcGetVelocity(rapidViewId)
+    callResult(6) = funcPostTeamsFind()
+    callResult(7) = funcGetSprintBurnDown(rapidViewId, CStr(ws_VelocityData.Range("A2").Value))
  
- 
+    'Run the calculations - note the order is specfic
+    funcPredictabilitySprintsEstimated
+    funcPredictabilityVelocity
+    funcPredictabilitySprintOutputVariability
+    funcResponsivenessLeadTime
+    funcResponsivenessDeploymentFrequency
+    funcResponsivenessTiP
+    funcPredictabilityTiPVariability
+    funcScrumUnplannedWork
+    funcResponsivenessWiP
+    funcProductivityReleaseVelocity
+    funcProductivityEfficiency
+    funcProductivityDistribution
+    funcQualityTimeToResolve
+    funcQualityDefectDentisy
+    funcQualityFailRate
+    funcScrumTeamStability
+    funcJiraAdminCorrectStatus
+    funcJiraAdminCorrectEpicLink
+    funcJiraAdminDoneInSprint
+    funcJiraAdminActiveTime
+    
 'Reverse the opening statements that paused calculations and screen updating
 Application.EnableEvents = True
 Application.ScreenUpdating = True
@@ -576,6 +602,7 @@ Private Function funcPostTeamsFind() As WebStatusCode
  
 '' Known limitations with this macro:
 ' (1) is hardcoded to a maximum of 50 teams in JsonPost
+' (2) need to add start date, end date and holiday accountability to the teams data
  
 'Dim JsonPost As String
 'JsonPost = "{" & Chr(34) & "maxResults" & Chr(34) & ":50}"
@@ -613,6 +640,11 @@ If funcPostTeamsFind = Ok Then
                 .Cells(r, 2).Value = PostTeamsResponse.Data("teams")(t)("title")
                 .Cells(r, 3).Value = PostTeamsResponse.Data("teams")(t)("resources")(p)("id")
                 .Cells(r, 4).Value = PostTeamsResponse.Data("teams")(t)("resources")(p)("personId")
+                If PostTeamsResponse.Data("teams")(t)("resources")(p).Exists("weeklyHours") Then
+                    .Cells(r, 5).Value = PostTeamsResponse.Data("teams")(t)("resources")(p)("weeklyHours")
+                Else
+                    .Cells(r, 5).Value = 40
+                End If
                 p = p + 1
                 r = r + 1
             Next jiraResource
@@ -621,8 +653,8 @@ If funcPostTeamsFind = Ok Then
         r = 2
         p = 1
         For Each jiraPerson In PostTeamsResponse.Data("persons")
-            .Cells(r, 5).Value = PostTeamsResponse.Data("persons")(p)("personId")
-            .Cells(r, 6).Value = PostTeamsResponse.Data("persons")(p)("jiraUser")("jiraUsername")
+            .Cells(r, 6).Value = PostTeamsResponse.Data("persons")(p)("personId")
+            .Cells(r, 7).Value = PostTeamsResponse.Data("persons")(p)("jiraUser")("jiraUsername")
             p = p + 1
             r = r + 1
         Next jiraPerson
@@ -701,6 +733,8 @@ For Each rates In SprintBurnDownResponse.Data("workRateData")("rates")
 Next rates
  
 DaysInSprint = DaysInSprint / 86400 / 1000
+
+
  
 End Function
  
@@ -761,7 +795,7 @@ With ws_TeamStats
 End With
  
 End Function
-Function funcPredictabilityTiPVariability()
+Private Function funcPredictabilityTiPVariability()
  
 '' Update the TeamStats worksheet with the *TiP Variability* calcualtion
 ' The value is added both to the sparkline graph
@@ -789,7 +823,7 @@ With ws_TeamStats
 End With
  
 End Function
-Function funcPredictabilitySprintOutputVariability()
+Private Function funcPredictabilitySprintOutputVariability()
  
 '' Update the TeamStats worksheet with the *Sprint Output Variability* calcualtion
 ' The value is added both to the sparkline graph
@@ -805,7 +839,7 @@ With ws_TeamStats
 End With
  
 End Function
-Function funcResponsivenessLeadTime()
+Private Function funcResponsivenessLeadTime()
  
 '' Update the TeamStats worksheet with the *Lead Time* calcualtion
 ' The value is added both to the sparkline graph
@@ -839,7 +873,7 @@ With ws_TeamStats
 End With
 
 End Function
-Function funcResponsivenessDeploymentFrequency()
+Private Function funcResponsivenessDeploymentFrequency()
  
 '' Update the TeamStats worksheet with the *Deployment Frequency* calcualtion
 ' The value is added both to the sparkline graph
@@ -873,7 +907,7 @@ With ws_TeamStats
 End With
  
 End Function
-Function funcResponsivenessTiP()
+Private Function funcResponsivenessTiP()
  
 '' Update the TeamStats worksheet with the *TiP* calcualtion
 ' The value is added both to the sparkline graph
@@ -907,7 +941,7 @@ With ws_TeamStats
 End With
  
 End Function
-Function funcResponsivenessWiP()
+Private Function funcResponsivenessWiP()
  
 '' Update the TeamStats worksheet with the *WiP* calcualtion
 ' The value is added both to the sparkline graph
@@ -963,9 +997,7 @@ End With
 MsgBox ("Done")
  
 End Function
-
-
-Function funcProductivityReleaseVelocity()
+Private Function funcProductivityReleaseVelocity()
  
 '' Update the TeamStats worksheet with the *Release Velocity* data
 '
@@ -1015,7 +1047,7 @@ With ws_TeamStats
 End With
  
 End Function
-Function funcProductivityEfficiency()
+Private Function funcProductivityEfficiency()
  
 '' Update the TeamStats worksheet with the *Efficiency* calcualtion
 ' The value is added both to the sparkline graph
@@ -1031,7 +1063,7 @@ With ws_TeamStats
 End With
  
 End Function
-Function funcProductivityDistribution()
+Private Function funcProductivityDistribution()
  
 '' Update the TeamStats worksheet with the *Distribution* data
 '
@@ -1144,7 +1176,7 @@ With ws_TeamStats
 End With
  
 End Function
-Function funcQualityTimeToResolve()
+Private Function funcQualityTimeToResolve()
  
 '' Update the TeamStats worksheet with the *Time To Resolve* calcualtion
 ' The value is added both to the sparkline graph
@@ -1168,7 +1200,7 @@ With ws_TeamStats
 End With
  
 End Function
-Function funcQualityDefectDentisy()
+Private Function funcQualityDefectDentisy()
  
 '' Update the TeamStats worksheet with the *Defect Density* calcualtion
 ' The value is added both to the sparkline graph
@@ -1186,7 +1218,7 @@ With ws_TeamStats
 End With
  
 End Function
-Function funcQualityFailRate()
+Private Function funcQualityFailRate()
  
 '' Update the TeamStats worksheet with the *Fail Rate* calcualtion
 ' The value is added both to the sparkline graph
@@ -1212,23 +1244,24 @@ With ws_TeamStats
 End With
  
 End Function
-Function funcScrumTeamStability()
+Private Function funcScrumTeamStability()
  
 '' Update the TeamStats worksheet with the Team Stability
 ' The value is added both to the sparkline graph
 ' Then to the board for display
 '
-' Dependent on function: funcPostTeamsFind
-'
+' Dependent on function: funcPostTeamsFind & ** needs an update to the funcGetSprintBurnDown to track timeSpent per person **
+' I was using funcGet3monthsOfDoneJiras but this was wrong as the time spent is over the total life of the story
+' and not timeboxed to the sprint or 3 months of data being collected, so have removed the logic below and recording 100% temporarily
 ''
  
 With ws_TeamStats
-    .Range("BB22").Value = 0 ' Forumla to be updated
-    .Range("J5").Value = 0 ' Forumla to be updated
+    .Range("BB22").Value = 1 ' Forumla to be updated
+    .Range("J5").Value = 1 ' Forumla to be updated
 End With
  
 End Function
-Function funcScrumUnplannedWork()
+Private Function funcScrumUnplannedWork()
  
 '' Update the TeamStats worksheet with the *Uplanned Work* (RemainingSprintTime)
 ' The the value in milliseconds is used for the sparkline graph
@@ -1244,7 +1277,7 @@ With ws_TeamStats
 End With
  
 End Function
-Function funcJiraAdminCorrectStatus()
+Private Function funcJiraAdminCorrectStatus()
  
 '' Update the TeamStats worksheet with the *Correct Status* calcualtion
 ' The value is added both to the sparkline graph
@@ -1260,7 +1293,7 @@ With ws_TeamStats
 End With
  
 End Function
-Function funcJiraAdminCorrectEpicLink()
+Private Function funcJiraAdminCorrectEpicLink()
  
 '' Update the TeamStats worksheet with the *Correct Project & Epic Link* calcualtion
 ' The value is added both to the sparkline graph
@@ -1276,7 +1309,7 @@ With ws_TeamStats
 End With
  
 End Function
-Function funcJiraAdminDoneInSprint()
+Private Function funcJiraAdminDoneInSprint()
  
 '' Update the TeamStats worksheet with the *Done In Sprint* calcualtion
 ' The value is added both to the sparkline graph
@@ -1292,7 +1325,7 @@ With ws_TeamStats
 End With
  
 End Function
-Function funcJiraAdminActiveTime()
+Private Function funcJiraAdminActiveTime()
  
 '' Update the TeamStats worksheet with the *Active Time %* calcualtion
 ' The value is added both to the sparkline graph
@@ -1301,15 +1334,24 @@ Function funcJiraAdminActiveTime()
 ' Dependent on function: funcGetSprintBurnDown & funcPostTeamsFind
 '
 ''
+
+' Known Limitiations:
+' (1) need to add start date, end date and holiday accountability to the funcPostTeamsFind and incorporate that in here
+
+'Sum the timeSpent/3600 to get the number of hours spent then /8 to get the number of days
+'Then / (number of days in sprint * number of hours allocated per week/ 5))
+ 
+Dim daysLogged As Long
+daysLogged = WorksheetFunction.Sum(ws_Work.Range("C:C")) / 3600 / 8
+Dim daysAllocated As Long
+daysAllocated = DaysInSprint * WorksheetFunction.SumIf(ws_TeamsData.Range("A:A"), CLng(TeamId), ws_TeamsData.Range("E:E")) / 5
  
 With ws_TeamStats
-    .Range("BB41").Value = 0 ' Forumla to be updated
-    .Range("J43").Value = 0 ' Forumla to be updated
+    .Range("BB41").Value = daysLogged / daysAllocated
+    .Range("J43").Value = Round(daysLogged / daysAllocated, 2)
 End With
  
 End Function
- 
- 
 Private Function sprint_ParseString(ByVal sprint_String As String, sprint_Field As String) As String
  
 'This function parses out the sprint fields which are stored as a long comma seperate string within an array
@@ -1343,14 +1385,11 @@ Private Function sprint_ParseString(ByVal sprint_String As String, sprint_Field 
     sprint_ParseString = Mid(sprint_String, StartPos, EndPos - StartPos)
  
 End Function
- 
- 
 Private Function funcRAG()
  
 '' This function should update the RAG triangles for each of the values displayed on the Dashboard
  
 End Function
- 
 Private Function funcAsOfDateTeamName()
  
 '' This function should update the AsOfDate and Team Name displayed on the Dashboard
@@ -1368,7 +1407,7 @@ Dim rngOldData As Range
     End With
    
 End Function
-Function CreateWorkSheet(ByVal name As String, Optional ByRef headings As Variant) As Worksheet
+Private Function CreateWorkSheet(ByVal name As String, Optional ByRef headings As Variant) As Worksheet
  
 '' Checks if a Worksheet exists and creates one if it doesn't
  
@@ -1395,66 +1434,75 @@ Dim ws As Worksheet
     End If
  
 End Function
-Function ws_TeamStats() As Worksheet
+Private Function ws_TeamStats() As Worksheet
     Set ws_TeamStats = CreateWorkSheet("ws_TeamStats")
 End Function
-Function ws_LeadTimeData() As Worksheet
+Private Function ws_LeadTimeData() As Worksheet
     Dim HeadingsArr As Variant
     HeadingsArr = Array("id", "key", "issueType", "createdDate", "sprintStartDate", "releaseDate", "totalTime", "totalString")
     Set ws_LeadTimeData = CreateWorkSheet("ws_LeadTimeData", HeadingsArr)
 End Function
-Function ws_WiPData() As Worksheet
+Private Function ws_WiPData() As Worksheet
     Dim HeadingsArr As Variant
     HeadingsArr = Array("id", "key", "issueType", "inProgressDate", "endProgressDate", "releaseDate", "WiP")
     Set ws_WiPData = CreateWorkSheet("ws_WiPData", HeadingsArr)
 End Function
-Function ws_IncompleteIssuesData() As Worksheet
+Private Function ws_IncompleteIssuesData() As Worksheet
     Dim HeadingsArr As Variant
     HeadingsArr = Array("id", "key", "issueType", "project", "epicKey", "storyPoints", "status", "statusCategory", "aggregateTimeEstimate", "sprintState")
     Set ws_IncompleteIssuesData = CreateWorkSheet("ws_IncompleteIssuesData", HeadingsArr)
 End Function
-Function ws_VelocityData() As Worksheet
+Private Function ws_VelocityData() As Worksheet
     Dim HeadingsArr As Variant
     HeadingsArr = Array("SprintId", "SprintName", "State", "Committed", "Completed")
    Set ws_VelocityData = CreateWorkSheet("ws_VelocityData", HeadingsArr)
 End Function
-Function ws_TeamsData() As Worksheet
+Private Function ws_TeamsData() As Worksheet
     Dim HeadingsArr As Variant
-    HeadingsArr = Array("id", "title", "resourceId", "personId", "personId2", "JiraUserName")
+    HeadingsArr = Array("id", "title", "resourceId", "personId", "weeklyHours", "personId2", "JiraUserName")
     Set ws_TeamsData = CreateWorkSheet("ws_TeamsData", HeadingsArr)
 End Function
-Function ws_Work() As Worksheet
+Private Function ws_Work() As Worksheet
     Dim HeadingsArr As Variant
     HeadingsArr = Array("key", "rapidViewId", "timeSpent")
     Set ws_Work = CreateWorkSheet("ws_Work", HeadingsArr)
 End Function
-Function ws_ProjectData() As Worksheet
+Private Function ws_ProjectData() As Worksheet
     Dim HeadingsArr As Variant
     HeadingsArr = Array("id", "key", "projectName", "category")
     Set ws_ProjectData = CreateWorkSheet("ws_ProjectData", HeadingsArr)
 End Function
-Function ws_DoneData() As Worksheet
+Private Function ws_DoneData() As Worksheet
     Dim HeadingsArr As Variant
     HeadingsArr = Array("id", "key", "issueType", "releaseDate")
     Set ws_DoneData = CreateWorkSheet("ws_DoneData", HeadingsArr)
 End Function
-Function ws_DefectData() As Worksheet
+Private Function ws_DefectData() As Worksheet
     Dim HeadingsArr As Variant
     HeadingsArr = Array("id", "key", "issueType", "affectsVersion", "affectsVersionReleaseDate")
     Set ws_DefectData = CreateWorkSheet("ws_DefectData", HeadingsArr)
 End Function
-Function TeamId() As String
+Private Function TeamId() As String
 ''Placeholder to define other values
     TeamId = "81"
 End Function
-Function rapidViewId() As String
-    rapidViewId = InputBox("rapidViewId?")
+Private Function rapidViewId(Optional ByVal Id As String) As String
+' Request the rapidViewId from the user if it is missing or the string is empty
+    If IsMissing(Id) Then
+        agileBoardId = InputBox("rapidViewId?")
+    Else
+        If Id = "" Then
+            agileBoardId = InputBox("rapidViewId?")
+        End If
+    End If
+    agileBoardId = Id 'Store the Id in the Public Variable
+    rapidViewId = agileBoardId
 End Function
-Function boardJql() As String
+Private Function boardJql() As String
 ''Placeholder to define other values
     boardJql = "Team = 81 AND CATEGORY = calm AND NOT issuetype in (Initiative) ORDER BY Rank ASC"
 End Function
-Function ArrayOfDates(ByVal startDate As Long, ByVal endDate As Long) As Variant()
+Private Function ArrayOfDates(ByVal startDate As Long, ByVal endDate As Long) As Variant()
 
     Dim Arr() As Variant
     Dim DateLoop As Variant
@@ -1472,8 +1520,7 @@ Function ArrayOfDates(ByVal startDate As Long, ByVal endDate As Long) As Variant
     ArrayOfDates = Arr
     
 End Function
-
-Function MinMaxDate(ByVal dateRange As Range, ByVal MType As String) As Variant
+Private Function MinMaxDate(ByVal dateRange As Range, ByVal MType As String) As Variant
     Dim c As Range
     Dim Arr() As Long
     Dim totalDays As Integer
@@ -1495,7 +1542,7 @@ Function MinMaxDate(ByVal dateRange As Range, ByVal MType As String) As Variant
     End If
     
 End Function
-Function inProgressForDate(ByVal startDate As Long, ByVal endDate As Long, currentDate As Long) As Integer
+Private Function inProgressForDate(ByVal startDate As Long, ByVal endDate As Long, currentDate As Long) As Integer
     If currentDate >= startDate Then
         If currentDate <= endDate Then
             inProgressForDate = 1
@@ -1506,8 +1553,7 @@ Function inProgressForDate(ByVal startDate As Long, ByVal endDate As Long, curre
         inProgressForDate = 0
     End If
 End Function
-
-Function WiP(ByVal row As Long) As Integer
+Private Function WiP(ByVal row As Long) As Integer
     
     Dim headers As Range
     Set headers = ws_WiPData.Range(Cells(1, 8), Cells(1, ws_WiPData.Range("H1").End(xlToRight).column))
@@ -1530,7 +1576,7 @@ Function WiP(ByVal row As Long) As Integer
     WiP = WorksheetFunction.Max(Arr)
     
 End Function
-Function testDate(ByVal cell As Range) As Long
+Private Function testDate(ByVal cell As Range) As Long
     ''returns the excel date as a Long from a cell value that is formated as a test string 'i.e. "30/05/2020" -->43981
     testDate = CLng(DateValue(cell.Value))
 End Function
