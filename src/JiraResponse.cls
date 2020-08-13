@@ -59,6 +59,7 @@ Public Function JiraCall(ByVal JiraRequest As WebRequest) As WebResponse
        
     Dim JiraClient As New WebClient
     JiraClient.baseUrl = JiraBaseUrl
+    JiraClient.TimeoutMs = 120000
     
     'Setup Authentication
     Dim JiraAuth As New HttpBasicAuthenticator

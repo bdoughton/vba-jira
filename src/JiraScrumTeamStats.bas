@@ -28,7 +28,6 @@ Public RemainingSprintTime As Long
 Public DaysInSprint As Long
 Public LastSprintName As String
 Public LastSprintId As Integer
-Public agileBoardId As String
 
 Sub GetTeamStats(control As IRibbonControl)
  
@@ -951,6 +950,7 @@ Private Function funcResponsivenessWiP()
 '
 ''
 Dim startDatesRange As Range, endDatesRange As Range
+ws_WiPData.Activate
 Set startDatesRange = ws_WiPData.Range(Cells(2, 4), Cells(ws_WiPData.Range("D2").End(xlDown).row, 4))
 Set endDatesRange = ws_WiPData.Range(Cells(2, 5), Cells(ws_WiPData.Range("E2").End(xlDown).row, 5))
 
@@ -1014,6 +1014,7 @@ Dim dict As Dictionary
 Set dict = New Dictionary
 
 currentReleaseDate = 0
+ws_LeadTimeData.Activate
 Set releaseDateRange = ws_LeadTimeData.Range(Cells(2, 6), Cells(ws_LeadTimeData.Range("F2").End(xlDown).row, 6))
 Set issueTypeRange = ws_LeadTimeData.Range(Cells(2, 3), Cells(ws_LeadTimeData.Range("C2").End(xlDown).row, 3))
 
@@ -1191,6 +1192,7 @@ Dim col As Integer
 
 col = ws_LeadTimeData.Range("1:1").Find("leadTime").column
 
+ws_LeadTimeData.Activate
 Set leadTimeRange = ws_LeadTimeData.Range(Cells(2, col), Cells(ws_LeadTimeData.Range("F2").End(xlDown).row, col))
 Set issueTypeRange = ws_LeadTimeData.Range(Cells(2, 3), Cells(ws_LeadTimeData.Range("C2").End(xlDown).row, 3))
  
@@ -1487,16 +1489,7 @@ Private Function TeamId() As String
     TeamId = "81"
 End Function
 Private Function rapidViewId(Optional ByVal Id As String) As String
-' Request the rapidViewId from the user if it is missing or the string is empty
-    If IsMissing(Id) Then
-        agileBoardId = InputBox("rapidViewId?")
-    Else
-        If Id = "" Then
-            agileBoardId = InputBox("rapidViewId?")
-        End If
-    End If
-    agileBoardId = Id 'Store the Id in the Public Variable
-    rapidViewId = agileBoardId
+    rapidViewId = "6533"
 End Function
 Private Function boardJql() As String
 ''Placeholder to define other values
