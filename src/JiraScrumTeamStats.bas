@@ -1080,8 +1080,8 @@ Dim issueType As String
 Dim releaseDate As Long
 Dim i As Range
 
-ws_LeadTimeData.Activate
-Set issueTypeDoneRange = ws_LeadTimeData.Range(Cells(2, 3), Cells(ws_LeadTimeData.Range("C2").End(xlDown).row, 3))
+ws_DoneData.Activate
+Set issueTypeDoneRange = ws_DoneData.Range(Cells(2, 3), Cells(ws_DoneData.Range("C2").End(xlDown).row, 3))
 ws_IncompleteIssuesData.Activate
 Set issueTypeBacklogRange = ws_IncompleteIssuesData.Range(Cells(2, 3), Cells(ws_IncompleteIssuesData.Range("C2").End(xlDown).row, 3))
 
@@ -1101,7 +1101,7 @@ For Each i In issueTypeDoneRange
     Case Else
         y = 0
     End Select
-    releaseDate = i.Offset(0, 3).Value
+    releaseDate = i.Offset(0, 1).Value
     Select Case releaseDate
     Case WorksheetFunction.EoMonth(Date, -13) To WorksheetFunction.EoMonth(Date, -12)
         x = 1
