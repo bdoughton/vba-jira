@@ -1,12 +1,18 @@
 Attribute VB_Name = "Jira"
 ''
-' Jira v0.2
+' Jira v0.3
 ' (c) Ben Doughton - https://github.com/bdoughton/vba-jira
 '
 ' @Includes:
 '               CheckJiraBaseUrl         - validates the format of the url passed to it
 '               JiraBaseUrl                   - returns the stored base url or requests one if not stored in properties
 '               UpdateBaseUrl             - updates a new base url from a Ribbon X control
+'               CheckJRapidBoard         - validates the board Id passed to it exists
+'               rapidViewId                   - returns the stored rapidViewId or requests one if not stored in properties
+'               UpdateBoardId             - updates the BoardId from a Ribbon X control
+'               GetJiraBoardResponse    - calls the Jira get agile/1.0/board api used to validate the rapidViewId
+'               teamId                         - returns the stored teamId or requests one if not stored in properties # placeholder to be updated
+'               boardJql                       - returns the stored boardJql or requests one if not stored in properties # placeholder to be updated
 '               IsLoggedIn                   - checks if a username and password are stored in properties
 '               GetJiraLoginResponse  - get request to Jira to validate user login redentials and stores them in properties if valid
 '               UpdateUser                  - run the LoginUser from a Ribbon X control
@@ -82,6 +88,59 @@ Sub UpdateBaseUrl(control As IRibbonControl)
     End If
     CheckJiraBaseUrl (InputBox("Please enter the new Jira Base Url:", "Jira", defaultUrl))
 End Sub
+Function CheckRapidBoard(ByVal Id As String) As Boolean
+
+    If StrPtr(Id) = 0 Then 'the user pressed "cancel"
+        Exit Function
+    End If
+
+    If GetJiraBoardResponse(Id).StatusCode = Ok Then
+        CheckRapidBoard = True
+        vbaJiraProperties.Range("A2:B2").Value = Array("RapidBoardId:", Id)
+        MsgBox ("Successfully found board : " & Id & " - " & GetJiraBoardResponse(Id).StatusCode)
+    Else
+        CheckRapidBoard = False
+        MsgBox ("Could not find board : " & GetJiraBoardResponse(Id).StatusCode)
+    End If
+
+End Function
+Function rapidViewId() As String
+
+    If vbaJiraProperties.Range("B2").Value = "" Then
+        If Not CheckRapidBoard(InputBox("Please enter the RapidBoardId:", "Jira")) Then
+            Exit Function
+        End If
+    End If
+    
+    rapidViewId = vbaJiraProperties.Range("B2").Value
+End Function
+Sub UpdateBoardId(control As IRibbonControl)
+    CheckRapidBoard (InputBox("Please enter the RapidBoardId:", "Jira", vbaJiraProperties.Range("B2").Value))
+End Sub
+Function GetJiraBoardResponse(ByVal Id As String) As WebResponse
+         
+    ' Create a WebRequest to get the logged in user's details
+    Dim BoardRequest As New WebRequest
+    BoardRequest.Resource = "agile/1.0/board/{boardId}"
+    ' Replace {boardId} segment
+    BoardRequest.AddUrlSegment "boardId", Id
+    BoardRequest.Method = WebMethod.HttpGet
+
+    Dim JiraBoardResponse As New JiraResponse
+    ' Execute the request and work with the response
+    Set GetJiraBoardResponse = JiraBoardResponse.JiraCall(BoardRequest)
+    
+End Function
+
+Public Function teamId() As String
+''Placeholder to define other values
+    teamId = "81"
+End Function
+Public Function boardJql() As String
+''Placeholder to define other values
+    boardJql = "Team = 81 AND CATEGORY = calm AND NOT issuetype in (Initiative) ORDER BY Rank ASC"
+End Function
+
 Function IsLoggedIn() As Boolean
 
     If userName <> "" Then

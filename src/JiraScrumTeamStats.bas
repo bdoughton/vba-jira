@@ -1,6 +1,6 @@
 Attribute VB_Name = "JiraScrumTeamStats"
 ''
-' VBA-JiraScrumTeamStats v2
+' VBA-JiraScrumTeamStats v2.1
 ' (c) Ben Doughton - https://github.com/bdoughton/vba-jira
 '
 ' JIRA Scrum Team Stats VBA
@@ -754,7 +754,7 @@ DaysInSprint = 9
 'SubTaskEstimate calculated as _
     = aggregateTimeEstimate from backlog / teamsize / working DaysInSprint / working hours in day / seconds in hour
 SubTaskEstimate = Excel.WorksheetFunction.Sum(ws_IncompleteIssuesData.Range("I:I")) _
-                    / Excel.WorksheetFunction.CountIf(ws_TeamsData.Range("A:A"), CInt(TeamId)) _
+                    / Excel.WorksheetFunction.CountIf(ws_TeamsData.Range("A:A"), CInt(teamId)) _
                     / DaysInSprint _
                     / 8 _
                     / 3600
@@ -1346,7 +1346,7 @@ Private Function funcJiraAdminActiveTime()
 Dim daysLogged As Long
 daysLogged = WorksheetFunction.Sum(ws_Work.Range("C:C")) / 3600 / 8
 Dim daysAllocated As Long
-daysAllocated = DaysInSprint * WorksheetFunction.SumIf(ws_TeamsData.Range("A:A"), CLng(TeamId), ws_TeamsData.Range("E:E")) / 5
+daysAllocated = DaysInSprint * WorksheetFunction.SumIf(ws_TeamsData.Range("A:A"), CLng(teamId), ws_TeamsData.Range("E:E")) / 5
  
 With ws_TeamStats
     .Range("BB41").Value = daysLogged / daysAllocated
@@ -1484,17 +1484,17 @@ Private Function ws_DefectData() As Worksheet
     HeadingsArr = Array("id", "key", "issueType", "affectsVersion", "affectsVersionReleaseDate")
     Set ws_DefectData = CreateWorkSheet("ws_DefectData", HeadingsArr)
 End Function
-Private Function TeamId() As String
-''Placeholder to define other values
-    TeamId = "81"
-End Function
-Private Function rapidViewId(Optional ByVal Id As String) As String
-    rapidViewId = "6533"
-End Function
-Private Function boardJql() As String
-''Placeholder to define other values
-    boardJql = "Team = 81 AND CATEGORY = calm AND NOT issuetype in (Initiative) ORDER BY Rank ASC"
-End Function
+'Private Function teamId() As String
+'''Placeholder to define other values
+'    teamId = "81"
+'End Function
+'Private Function rapidViewId(Optional ByVal Id As String) As String
+'    rapidViewId = "6533"
+'End Function
+'Private Function boardJql() As String
+'''Placeholder to define other values
+'    boardJql = "Team = 81 AND CATEGORY = calm AND NOT issuetype in (Initiative) ORDER BY Rank ASC"
+'End Function
 Private Function ArrayOfDates(ByVal startDate As Long, ByVal endDate As Long) As Variant()
 
     Dim Arr() As Variant

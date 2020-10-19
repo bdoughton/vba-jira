@@ -20,7 +20,7 @@
                  <!-- use itemSize = large or use normal -->
                  <button id="Button6" imageMso="SearchCalendarsOnline" label="Update Base URL" onAction="UpdateBaseUrl" description="Update the base URL"/>
                  <button id="Button7" imageMso="Head" label="Update Login" onAction="UpdateUser" description="Update Name and Password"/>
-                 <button id="Button8" imageMso="TableFind" label="Update Board ID" onAction="ThisDocument.Macro16" description="Update the Board ID"/>
+                 <button id="Button8" imageMso="TableFind" label="Update Board ID" onAction="UpdateBoardId" description="Update the Board ID"/>
                </menu>
            </splitButton>
          </group >
