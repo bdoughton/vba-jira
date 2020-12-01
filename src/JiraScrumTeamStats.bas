@@ -122,6 +122,10 @@ If Enabled Then
         .Range("AW22:BA44").Value = .Range("AX22:BB44").Value
     End With
 End If
+
+With ws_TeamStats
+    .Range("B2").Value = "Team Name - As Of: " & Format(Now(), "dd-mmm-yy")
+End With
  
 End Function
  
@@ -1032,6 +1036,7 @@ Next c
 countOfReleases = dict.Count
 
 With ws_TeamStats
+    .Range("AS4").Value = currentReleaseDate
     .Range("AT4:AX4").Value = Array("Feature", "Defects", "Risks", "Debts", "Enablers")
     .Range("AS5").Value = "Velocity"
     .Range("AT5").Value = WorksheetFunction.CountIfs(issueTypeRange, "Story", releaseDateRange, currentReleaseDate) ' Feature Velocity
@@ -1242,7 +1247,7 @@ totalPBIs = WorksheetFunction.CountIf(ws_LeadTimeData.Range("F:F"), ">" & period
 
 With ws_TeamStats
     .Range("BB39").Value = totalBugs / totalPBIs
-    .Range("AM36").Value = Round(totalBugs / totalPBIs, 1)
+    .Range("AM36").Value = Round(totalBugs / totalPBIs, 2)
 End With
  
 End Function
