@@ -1,6 +1,6 @@
 Attribute VB_Name = "JiraAgile"
 ''
-' JiraAgile v0.2
+' JiraAgile v1.0
 ' (c) Ben Doughton - https://github.com/bdoughton/vba-jira
 '
 ' Contains modules for Importing Jira Agile Boards. Includes:

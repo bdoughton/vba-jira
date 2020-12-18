@@ -1,6 +1,6 @@
 Attribute VB_Name = "JiraScrumTeamStats"
 ''
-' VBA-JiraScrumTeamStats v2.1
+' VBA-JiraScrumTeamStats v1.0
 ' (c) Ben Doughton - https://github.com/bdoughton/vba-jira
 '
 ' JIRA Scrum Team Stats VBA
@@ -149,8 +149,8 @@ Private Function funcGet3MonthsOfDoneJiras(ByVal boardJql As String, ByVal inPro
 ' (2) needs to be updated to run for a smaller number of maxresults
 ' (3) there is no error handling around the second api call to get the subtasks which could fail
  
-Dim jql As String
-jql = "fixversion changed after -24w AND " & _
+Dim JQL As String
+JQL = "fixversion changed after -24w AND " & _
         "fixVersion is not EMPTY AND " & _
         "Sprint is not EMPTY AND " & _
         "NOT issuetype in (Theme,Initiative,Epic,Test,subTaskIssueTypes()) AND " & _
@@ -171,7 +171,7 @@ Dim JQL_PBI_Request As New WebRequest
 With JQL_PBI_Request
     .Resource = "api/2/search"
     .Method = WebMethod.HttpGet
-    .AddQuerystringParam "jql", jql
+    .AddQuerystringParam "jql", JQL
     .AddQuerystringParam "fields", apiFields
     .AddQuerystringParam "startAt", startAtVal
     .AddQuerystringParam "maxResults", "1000"
@@ -259,7 +259,7 @@ If funcGet3MonthsOfDoneJiras = Ok Then
     '' This next section cycles through all the sub-tasks and adds up the time logged to each
  
     For Each rng_Parent In ws_LeadTimeData.Range("B2:B" & ws_LeadTimeData.Range("A1").End(xlDown).row)
-        jql = "Parent = " & rng_Parent.Value
+        JQL = "Parent = " & rng_Parent.Value
    
         apiFields = "key," _
             & "issuetype," _
@@ -269,7 +269,7 @@ If funcGet3MonthsOfDoneJiras = Ok Then
         With JQL_SubTask_Request
             .Resource = "api/2/search"
             .Method = WebMethod.HttpGet
-            .AddQuerystringParam "jql", jql
+            .AddQuerystringParam "jql", JQL
             .AddQuerystringParam "fields", apiFields
             .AddQuerystringParam "startAt", "0"
             .AddQuerystringParam "maxResults", "1000"
@@ -312,11 +312,11 @@ If funcGet3MonthsOfDoneJiras = Ok Then
         Next
         '' Totals
         ws_LeadTimeData.Activate
-        For Each rng_author In ws_LeadTimeData.Range(Cells(1, 9), Cells(1, ws_LeadTimeData.Range("A1").End(xlToRight).column))
-            ws_LeadTimeData.Cells(rng_Parent.row, rng_author.column) = collIssueKey(rng_Parent.Value)(rng_author.Value)
+        For Each rng_author In ws_LeadTimeData.Range(Cells(1, 9), Cells(1, ws_LeadTimeData.Range("A1").End(xlToRight).Column))
+            ws_LeadTimeData.Cells(rng_Parent.row, rng_author.Column) = collIssueKey(rng_Parent.Value)(rng_author.Value)
         Next rng_author
        
-        col = ws_LeadTimeData.Range("A1").End(xlToRight).column
+        col = ws_LeadTimeData.Range("A1").End(xlToRight).Column
         rng_Parent.Offset(0, 5).Value = Application.WorksheetFunction.Sum(Range(Cells(rng_Parent.row, 9), Cells(rng_Parent.row, col)))
         rng_Parent.Offset(0, 6).Value = Jira.jiratime(rng_Parent.Offset(0, 5).Value)
         Set JQL_SubTask_Request = Nothing
@@ -340,8 +340,8 @@ Private Function funcGetIncompleteJiras(ByVal boardJql As String, ByRef startAtV
 '' Known limitations with this macro:
 ' (1) needs to be updated to run for a smaller number of maxresults
  
-Dim jql As String
-jql = "statusCategory not in (Done) AND " & _
+Dim JQL As String
+JQL = "statusCategory not in (Done) AND " & _
         "issuetype not in subTaskIssueTypes() AND " & _
         boardJql
        
@@ -360,7 +360,7 @@ Dim JQL_PBI_Request As New WebRequest
 With JQL_PBI_Request
     .Resource = "api/2/search"
     .Method = WebMethod.HttpGet
-    .AddQuerystringParam "jql", jql
+    .AddQuerystringParam "jql", JQL
     .AddQuerystringParam "fields", apiFields
     .AddQuerystringParam "startAt", startAtVal
     .AddQuerystringParam "maxResults", "1000"
@@ -421,8 +421,8 @@ Private Function funcGet12MonthDoneJiras(ByVal boardJql As String, ByRef startAt
 '' Known limitations with this macro:
 ' (1) needs to be updated to run for a smaller number of maxresults
  
-Dim jql As String
-jql = "fixversion changed after -60w AND " & _
+Dim JQL As String
+JQL = "fixversion changed after -60w AND " & _
         "fixVersion is not EMPTY AND " & _
         "Sprint is not EMPTY AND " & _
         "NOT issuetype in (Theme,Initiative,Epic,Test,subTaskIssueTypes()) AND " & _
@@ -439,7 +439,7 @@ Dim JQL_PBI_Request As New WebRequest
 With JQL_PBI_Request
     .Resource = "api/2/search"
     .Method = WebMethod.HttpGet
-    .AddQuerystringParam "jql", jql
+    .AddQuerystringParam "jql", JQL
     .AddQuerystringParam "fields", apiFields
     .AddQuerystringParam "startAt", startAtVal
     .AddQuerystringParam "maxResults", "1000"
@@ -494,8 +494,8 @@ Private Function funcGetDefects(ByVal boardJql As String, ByRef startAtVal, r As
 '' Known limitations with this macro:
 ' (1) needs to be updated to run for a smaller number of maxresults
  
-Dim jql As String
-jql = "issuetype in (Bug,Defect) AND created >= startOfMonth(-3) AND " & _
+Dim JQL As String
+JQL = "issuetype in (Bug,Defect) AND created >= startOfMonth(-3) AND " & _
         boardJql
        
 Dim apiFields As String
@@ -509,7 +509,7 @@ Dim JQL_PBI_Request As New WebRequest
 With JQL_PBI_Request
     .Resource = "api/2/search"
     .Method = WebMethod.HttpGet
-    .AddQuerystringParam "jql", jql
+    .AddQuerystringParam "jql", JQL
     .AddQuerystringParam "fields", apiFields
     .AddQuerystringParam "startAt", startAtVal
     .AddQuerystringParam "maxResults", "1000"
@@ -815,7 +815,7 @@ Dim TiPCol As Integer
 Dim TipRow As Long
  
 ws_LeadTimeData.Activate
-TiPCol = ws_LeadTimeData.Range("1:1").Find("TiP").column
+TiPCol = ws_LeadTimeData.Range("1:1").Find("TiP").Column
 TipRow = ws_LeadTimeData.Cells(1, TiPCol).End(xlDown).row
  
 Set rng = ws_LeadTimeData.Range(Cells(2, TiPCol), Cells(TipRow, TiPCol))
@@ -858,7 +858,7 @@ Dim c As Range
  
 With ws_LeadTimeData
     .Activate
-    col = .Range("A1").End(xlToRight).column + 1
+    col = .Range("A1").End(xlToRight).Column + 1
     .Cells(1, col).Value = "leadTime"
  
     Set rng_LeadTime = .Range(Cells(2, col), Cells(.Range("A1").End(xlDown).row, col))
@@ -926,7 +926,7 @@ Dim c As Range
  
 With ws_LeadTimeData
  
-    col = .Range("A1").End(xlToRight).column + 1
+    col = .Range("A1").End(xlToRight).Column + 1
     .Cells(1, col).Value = "TiP"
  
     Set rng_TiP = .Range(Cells(2, col), Cells(.Range("A1").End(xlDown).row, col))
@@ -1195,7 +1195,7 @@ Dim leadTimeRange As Range
 Dim issueTypeRange As Range
 Dim col As Integer
 
-col = ws_LeadTimeData.Range("1:1").Find("leadTime").column
+col = ws_LeadTimeData.Range("1:1").Find("leadTime").Column
 
 ws_LeadTimeData.Activate
 Set leadTimeRange = ws_LeadTimeData.Range(Cells(2, col), Cells(ws_LeadTimeData.Range("F2").End(xlDown).row, col))
@@ -1554,7 +1554,7 @@ End Function
 Private Function WiP(ByVal row As Long) As Integer
     
     Dim headers As Range
-    Set headers = ws_WiPData.Range(Cells(1, 8), Cells(1, ws_WiPData.Range("H1").End(xlToRight).column))
+    Set headers = ws_WiPData.Range(Cells(1, 8), Cells(1, ws_WiPData.Range("H1").End(xlToRight).Column))
 
     Dim countRows As Long
     countRows = ws_WiPData.Range("H1").End(xlDown).row - 1

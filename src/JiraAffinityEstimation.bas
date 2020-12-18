@@ -1,6 +1,6 @@
 Attribute VB_Name = "JiraAffinityEstimation"
 ''
-' JiraAffinityEstimation v0.1
+' JiraAffinityEstimation v1.0
 ' (c) Ben Doughton - https://github.com/bdoughton/vba-jira
 '
 ' Contains modules for Importing Jira tickets for Affinity Esimation and then updating Jira Story Points. Includes:

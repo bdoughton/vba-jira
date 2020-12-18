@@ -8,7 +8,7 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 ''
-' JiraResponse v1
+' JiraResponse v1.0
 ' (c) Ben Doughton - https://github.com/bdoughton/vba-jira
 '
 ' ```

@@ -1,6 +1,6 @@
 Attribute VB_Name = "Jira"
 ''
-' Jira v0.3
+' Jira v1.0
 ' (c) Ben Doughton - https://github.com/bdoughton/vba-jira
 '
 ' @Includes:
