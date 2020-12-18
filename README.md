@@ -10,8 +10,6 @@ Getting started
 - The project is composed of an MS Excel Add-in: `vba-jira.xlam` with a CustomUI Ribbon and associated excel templates:
     - Metrics: `ScrumTeamStats.xlsx`
 
-For more details a [Wiki](https://github.com/bdoughton/vba-jira/wiki) is in the works
-
 Notes
 ---
 
@@ -25,7 +23,7 @@ Before commiting changes to Git the source code should be exported from the Visu
 
 ### Release Notes
 
-View the [changelog](TBD) for release notes
+View the [changelog](https://github.com/bdoughton/vba-jira/CHANGELOG.md) for release notes
 
 ### About
 
