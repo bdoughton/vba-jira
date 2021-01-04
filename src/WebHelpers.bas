@@ -363,7 +363,7 @@ Public Enum WebFormat
     JSON = 1
     FormUrlEncoded = 2
     Xml = 3
-    Custom = 9
+    custom = 9
 End Enum
 
 ''
@@ -449,9 +449,9 @@ Public AsyncRequests As Dictionary
 ' @param {String} Message
 ' @param {String} [From="VBA-Web"]
 ''
-Public Sub LogDebug(Message As String, Optional From As String = "VBA-Web")
+Public Sub LogDebug(message As String, Optional From As String = "VBA-Web")
     If EnableLogging Then
-        Debug.Print From & ": " & Message
+        Debug.Print From & ": " & message
     End If
 End Sub
 
@@ -473,8 +473,8 @@ End Sub
 ' @param {String} Message
 ' @param {String} [From="VBA-Web"]
 ''
-Public Sub LogWarning(Message As String, Optional From As String = "VBA-Web")
-    Debug.Print "WARNING - " & From & ": " & Message
+Public Sub LogWarning(message As String, Optional From As String = "VBA-Web")
+    Debug.Print "WARNING - " & From & ": " & message
 End Sub
 
 ''
@@ -499,7 +499,7 @@ End Sub
 ' @param {String} [From="VBA-Web"]
 ' @param {Long} [ErrNumber=0]
 ''
-Public Sub LogError(Message As String, Optional From As String = "VBA-Web", Optional ErrNumber As Long = 0)
+Public Sub LogError(message As String, Optional From As String = "VBA-Web", Optional ErrNumber As Long = 0)
     Dim web_ErrorValue As String
     If ErrNumber <> 0 Then
         web_ErrorValue = ErrNumber
@@ -511,7 +511,7 @@ Public Sub LogError(Message As String, Optional From As String = "VBA-Web", Opti
         web_ErrorValue = web_ErrorValue & ", "
     End If
 
-    Debug.Print "ERROR - " & From & ": " & web_ErrorValue & Message
+    Debug.Print "ERROR - " & From & ": " & web_ErrorValue & message
 End Sub
 
 ''
@@ -527,7 +527,7 @@ Public Sub LogRequest(Client As WebClient, Request As WebRequest)
         Debug.Print MethodToName(Request.Method) & " " & Client.GetFullUrl(Request)
 
         Dim web_KeyValue As Dictionary
-        For Each web_KeyValue In Request.Headers
+        For Each web_KeyValue In Request.headers
             Debug.Print web_KeyValue("Key") & ": " & web_KeyValue("Value")
         Next web_KeyValue
 
@@ -541,6 +541,14 @@ Public Sub LogRequest(Client As WebClient, Request As WebRequest)
 
         Debug.Print
     End If
+
+''
+' Start Custom addition for Status Bar : Ben Doughton
+    Application.DisplayStatusBar = True
+    Application.StatusBar = "Waiting for Request..." & Format(Now, "Long Time") & "--> " & MethodToName(Request.Method) & " " & Client.GetFullUrl(Request)
+' End Custom Code
+''
+    
 End Sub
 
 ''
@@ -558,7 +566,7 @@ Public Sub LogResponse(Client As WebClient, Request As WebRequest, Response As W
         Debug.Print "<-- Response - " & Format(Now, "Long Time")
         Debug.Print Response.StatusCode & " " & Response.StatusDescription
 
-        For Each web_KeyValue In Response.Headers
+        For Each web_KeyValue In Response.headers
             Debug.Print web_KeyValue("Key") & ": " & web_KeyValue("Value")
         Next web_KeyValue
 
@@ -568,6 +576,13 @@ Public Sub LogResponse(Client As WebClient, Request As WebRequest, Response As W
 
         Debug.Print vbNewLine & Response.Content & vbNewLine
     End If
+    
+''
+' Start Custom addition for Status Bar : Ben Doughton
+    Application.DisplayStatusBar = True
+    Application.StatusBar = "Response received: " & Format(Now, "Long Time") & " <-- " & Response.StatusCode & " " & Response.StatusDescription
+' End Custom Code
+''
 End Sub
 
 ''
@@ -751,7 +766,7 @@ Public Function ParseByFormat(Value As String, Format As WebFormat, _
         Set ParseByFormat = ParseUrlEncoded(Value)
     Case WebFormat.Xml
         Set ParseByFormat = ParseXml(Value)
-    Case WebFormat.Custom
+    Case WebFormat.custom
 #If EnableCustomFormatting Then
         Dim web_Converter As Dictionary
         Dim web_Callback As String
@@ -813,7 +828,7 @@ Public Function ConvertToFormat(Obj As Variant, Format As WebFormat, Optional Cu
         ConvertToFormat = ConvertToUrlEncoded(Obj)
     Case WebFormat.Xml
         ConvertToFormat = ConvertToXml(Obj)
-    Case WebFormat.Custom
+    Case WebFormat.custom
 #If EnableCustomFormatting Then
         Dim web_Converter As Dictionary
         Dim web_Callback As String
@@ -1267,7 +1282,7 @@ End Function
 '   Protocol, Host, Port, Path, Querystring, Hash
 ' @throws 11003 - Error while getting url parts
 ''
-Public Function GetUrlParts(Url As String) As Dictionary
+Public Function GetUrlParts(url As String) As Dictionary
     Dim web_Parts As New Dictionary
 
     On Error GoTo web_ErrorHandling
@@ -1284,17 +1299,17 @@ Public Function GetUrlParts(Url As String) As Dictionary
     Dim web_Value As String
 
     ' Add Protocol if missing
-    If InStr(1, Url, "://") <= 0 Then
+    If InStr(1, url, "://") <= 0 Then
         web_AddedProtocol = True
-        If InStr(1, Url, "//") = 1 Then
-            Url = "http" & Url
+        If InStr(1, url, "//") = 1 Then
+            url = "http" & url
         Else
-            Url = "http://" & Url
+            url = "http://" & url
         End If
     End If
 
     web_Command = "perl -e '{use URI::URL;" & vbNewLine & _
-        "$url = new URI::URL """ & Url & """;" & vbNewLine & _
+        "$url = new URI::URL """ & url & """;" & vbNewLine & _
         "print ""Protocol="" . $url->scheme;" & vbNewLine & _
         "print "" | Host="" . $url->host;" & vbNewLine & _
         "print "" | Port="" . $url->port;" & vbNewLine & _
@@ -1336,7 +1351,7 @@ Public Function GetUrlParts(Url As String) As Dictionary
         Set web_pElHelper = web_pDocumentHelper.createElement("a")
     End If
 
-    web_pElHelper.href = Url
+    web_pElHelper.href = url
     web_Parts.Add "Protocol", Replace(web_pElHelper.Protocol, ":", "", Count:=1)
     web_Parts.Add "Host", web_pElHelper.hostname
     web_Parts.Add "Port", web_pElHelper.port
@@ -1545,7 +1560,7 @@ Public Function FormatToMediaType(Format As WebFormat, Optional CustomFormat As 
         FormatToMediaType = "application/json"
     Case WebFormat.Xml
         FormatToMediaType = "application/xml"
-    Case WebFormat.Custom
+    Case WebFormat.custom
         FormatToMediaType = web_GetConverter(CustomFormat)("MediaType")
     Case Else
         FormatToMediaType = "text/plain"
@@ -3023,7 +3038,7 @@ End Function
 ' @param[out] {String} ProxyServer
 ' @param[out] {String} ProxyBypass
 ''
-Public Sub GetAutoProxy(ByVal Url As String, ByRef ProxyServer As String, ByRef ProxyBypass As String)
+Public Sub GetAutoProxy(ByVal url As String, ByRef ProxyServer As String, ByRef ProxyBypass As String)
 #If Mac Then
     ' (Windows only)
 #ElseIf VBA7 Then
@@ -3049,7 +3064,7 @@ Public Sub GetAutoProxy(ByVal Url As String, ByRef ProxyServer As String, ByRef 
     ProxyBypass = ""
 
     ' WinHttpGetProxyForUrl returns unexpected errors if Url is empty
-    If Url = "" Then Url = " "
+    If url = "" Then url = " "
 
     On Error GoTo AutoProxy_Cleanup
 
@@ -3090,7 +3105,7 @@ Public Sub GetAutoProxy(ByVal Url As String, ByRef ProxyServer As String, ByRef 
         AutoProxy_hSession = AutoProxy_HttpOpen(0, 1, 0, 0, 0)
 
         If (AutoProxy_GetProxyForUrl( _
-            AutoProxy_hSession, StrPtr(Url), AutoProxy_AutoProxyOptions, AutoProxy_ProxyInfo) > 0) Then
+            AutoProxy_hSession, StrPtr(url), AutoProxy_AutoProxyOptions, AutoProxy_ProxyInfo) > 0) Then
 
             AutoProxy_ProxyStringPtr = AutoProxy_ProxyInfo.AutoProxy_lpszProxy
         Else

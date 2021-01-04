@@ -38,15 +38,11 @@ Attribute VB_Name = "Jira"
 Option Explicit
 
 ''Jira CustomFields
-Public Const ExternalIssueID As String = "customfield_10116"
-Public Const OriginalDueDate As String = "customfield_11604"
-Public Const AccountableDepartment As String = "customfield_11700"
-Public Const sprints As String = "customfield_10004"
-Public Const parentlink As String = "customfield_11801"
-Public Const epiclink As String = "customfield_10006"
-Public Const Team As String = "customfield_11800"
-Public Const storypoints As String = "customfield_10002"
-Public Const epiccolour As String = "customfield_10008"
+
+''Commenting these 3 out for now as I don't believe they are used anymore : 19-Dec-2020
+'Public Const ExternalIssueID As String = "customfield_10116"
+'Public Const OriginalDueDate As String = "customfield_11604"
+'Public Const AccountableDepartment As String = "customfield_11700"
 
 Public userName As String
 Public userPassword As String
@@ -80,6 +76,10 @@ Function JiraBaseUrl() As String
     
 End Function
 Sub UpdateBaseUrl(control As IRibbonControl)
+    
+    Dim oldStatusBar As Boolean
+    oldStatusBar = Application.DisplayStatusBar
+
     Dim defaultUrl As String
     If vbaJiraProperties.Range("B1").Value = "" Then
         defaultUrl = "http://localhost:8080/rest/"
@@ -87,6 +87,10 @@ Sub UpdateBaseUrl(control As IRibbonControl)
         defaultUrl = vbaJiraProperties.Range("B1").Value
     End If
     CheckJiraBaseUrl (InputBox("Please enter the new Jira Base Url:", "Jira", defaultUrl))
+    
+    Application.StatusBar = False
+    Application.DisplayStatusBar = oldStatusBar
+    
 End Sub
 Function CheckRapidBoard(ByVal Id As String) As Boolean
 
@@ -96,49 +100,205 @@ Function CheckRapidBoard(ByVal Id As String) As Boolean
 
     If GetJiraBoardResponse(Id).StatusCode = Ok Then
         CheckRapidBoard = True
-        vbaJiraProperties.Range("A2:B2").Value = Array("RapidBoardId:", Id)
-        MsgBox ("Successfully found board : " & Id & " - " & GetJiraBoardResponse(Id).StatusCode)
+        MsgBox ("Successfully found board : " & Id & " - " & GetJiraBoardResponse(Id).StatusCode) ' Duplicate call remove this
     Else
         CheckRapidBoard = False
-        MsgBox ("Could not find board : " & GetJiraBoardResponse(Id).StatusCode)
+        MsgBox ("Could not find board : " & GetJiraBoardResponse(Id).StatusCode) ' Duplicate call remove this
     End If
 
 End Function
 Function rapidViewId() As String
 
-    If vbaJiraProperties.Range("B2").Value = "" Then
+    If vbaJiraProperties.Range("E1").Value = "" Then
         If Not CheckRapidBoard(InputBox("Please enter the RapidBoardId:", "Jira")) Then
             Exit Function
         End If
     End If
-    
-    rapidViewId = vbaJiraProperties.Range("B2").Value
+    rapidViewId = vbaJiraProperties.Range("E1").Value
 End Function
 Sub UpdateBoardId(control As IRibbonControl)
-    CheckRapidBoard (InputBox("Please enter the RapidBoardId:", "Jira", vbaJiraProperties.Range("B2").Value))
+
+    Dim oldStatusBar As Boolean
+    oldStatusBar = Application.DisplayStatusBar
+
+    CheckRapidBoard (InputBox("Please enter the RapidBoardId:", "Jira", vbaJiraProperties.Range("E1").Value))
+
+    Application.StatusBar = False
+    Application.DisplayStatusBar = oldStatusBar
+
+End Sub
+Sub UpdateCustomFields(control As IRibbonControl)
+
+    Dim oldStatusBar As Boolean
+    oldStatusBar = Application.DisplayStatusBar
+    
+    ' First check that a RapidBoard exists - used as a proxy to ensure that JiraAgile is installed
+    If vbaJiraProperties.Range("E1").Value = "" Then
+        If Not CheckRapidBoard(InputBox("Please enter the RapidBoardId:", "Jira")) Then
+            Exit Sub
+        End If
+    End If
+    
+    ' Store the CustomFields from Jira Agile
+    If GetJiraCustomFieldResponse("JiraAgile").StatusCode = Ok Then
+        MsgBox ("Successfully Updated Jira Agile Custom Fields")
+    Else
+        MsgBox ("Error retreiving Jira Agile Custom Fields")
+    End If
+    
+    ' Store the CustomFields from Advanced Roadmaps
+    If True Then ' To be updated with a check to see if the Advanced Roadmaps plugin is installed
+        If GetJiraCustomFieldResponse("AdvancedRoadmaps").StatusCode = Ok Then
+            MsgBox ("Successfully Updated Jira Advanced Roadmaps Custom Fields")
+        Else
+            MsgBox ("Error retreiving Jira Advanced Roadmaps Custom Fields")
+        End If
+    End If
+    
+    Application.StatusBar = False
+    Application.DisplayStatusBar = oldStatusBar
+    
 End Sub
 Function GetJiraBoardResponse(ByVal Id As String) As WebResponse
          
     ' Create a WebRequest to get the logged in user's details
     Dim BoardRequest As New WebRequest
-    BoardRequest.Resource = "agile/1.0/board/{boardId}"
-    ' Replace {boardId} segment
-    BoardRequest.AddUrlSegment "boardId", Id
+
+    BoardRequest.Resource = "greenhopper/1.0/rapidviewconfig/editmodel.json"
+    BoardRequest.AddQuerystringParam "rapidViewId", Id
     BoardRequest.Method = WebMethod.HttpGet
 
     Dim JiraBoardResponse As New JiraResponse
     ' Execute the request and work with the response
     Set GetJiraBoardResponse = JiraBoardResponse.JiraCall(BoardRequest)
     
+    If GetJiraBoardResponse.StatusCode = Ok Then
+        vbaJiraProperties.Range("D1:E1").Value = Array("boardId:", GetJiraBoardResponse.Data("id"))
+        vbaJiraProperties.Range("D2:E2").Value = Array("boardName:", GetJiraBoardResponse.Data("name"))
+        vbaJiraProperties.Range("D3:E3").Value = Array("boardJql:", GetJiraBoardResponse.Data("filterConfig")("query"))
+        vbaJiraProperties.Range("D4:E4").Value = Array("boardTimeTrackingEnabled:", GetJiraBoardResponse.Data("estimationStatisticConfig")("currentTrackingStatistic")("isEnabled"))
+    End If
+End Function
+Function GetJiraCustomFieldResponse(ByVal PlugIn As String) As WebResponse
+         
+    ' Create a WebRequest to get the logged in user's details
+    Dim CustomFieldRequest As New WebRequest
+    CustomFieldRequest.Resource = "api/2/field"
+    CustomFieldRequest.Method = WebMethod.HttpGet
+
+    Dim JiraCustomFieldResponse As New JiraResponse
+    ' Execute the request and work with the response
+    Set GetJiraCustomFieldResponse = JiraCustomFieldResponse.JiraCall(CustomFieldRequest)
+    
+    If GetJiraCustomFieldResponse.StatusCode = Ok Then
+    Select Case PlugIn
+            Case "JiraAgile"
+                vbaJiraProperties.Range("G1:H1").Value = Array("sprints:", find_customfield_id("Sprint", "com.pyxis.greenhopper.jira:gh-sprint", GetJiraCustomFieldResponse.Data))
+                vbaJiraProperties.Range("G2:H2").Value = Array("epiclink:", find_customfield_id("Epic Link", "com.pyxis.greenhopper.jira:gh-epic-link", GetJiraCustomFieldResponse.Data))
+                vbaJiraProperties.Range("G3:H3").Value = Array("storypoints:", find_customfield_id("Story Points", "com.atlassian.jira.plugin.system.customfieldtypes:float", GetJiraCustomFieldResponse.Data))
+                vbaJiraProperties.Range("G4:H4").Value = Array("epiccolour:", find_customfield_id("Epic Colour", "com.pyxis.greenhopper.jira:gh-epic-color", GetJiraCustomFieldResponse.Data))
+            Case "AdvancedRoadmaps"
+                vbaJiraProperties.Range("G5:H5").Value = Array("parentlink:", find_customfield_id("Parent Link", "com.atlassian.jpo:jpo-custom-field-parent", GetJiraCustomFieldResponse.Data))
+                vbaJiraProperties.Range("G6:H6").Value = Array("Team:", find_customfield_id("Team", "com.atlassian.teams:rm-teams-custom-field-team", GetJiraCustomFieldResponse.Data))
+        End Select
+    End If
 End Function
 
-Public Function teamId() As String
-''Placeholder to define other values
-    teamId = "81"
+Function find_customfield_id(ByVal name As String, ByVal custom As String, ByVal Data As Object) As String
+'' Search through the Data object and find the customfield_id that corresponds to the correct custom field
+    Dim field As Object
+    Dim i As Integer
+    i = 1
+    For Each field In Data
+        If Data(i)("name") = name Then
+            If Data(i)("schema")("custom") = custom Then ' then validate the custom schema type to ensure accuracy in case two or more fields have the same name
+                find_customfield_id = Data(i)("id")
+                Exit Function
+            End If
+        End If
+        i = i + 1
+    Next field
 End Function
+
+' CustomFields from Jira Agile
+Public Function sprints() As String
+    sprints = vbaJiraProperties.Range("H1").Value
+End Function
+
+Public Function epiclink() As String
+    epiclink = vbaJiraProperties.Range("H2").Value
+End Function
+
+Public Function storypoints() As String
+    storypoints = vbaJiraProperties.Range("H3").Value
+End Function
+
+Public Function epiccolour() As String
+    epiccolour = vbaJiraProperties.Range("H4").Value
+End Function
+
+' CustomFields from Advanced Roadmaps (formely Portfolio)
+Public Function parentlink() As String
+    ''parentlink = "customfield_11801"
+    parentlink = vbaJiraProperties.Range("H5").Value
+End Function
+
+Public Function Team() As String 'Custom fieldname for Team
+    'i.e. Team = "customfield_11800"
+    Team = vbaJiraProperties.Range("H6").Value
+End Function
+
+' Values from Jira Agile
+
 Public Function boardJql() As String
-''Placeholder to define other values
-    boardJql = "Team = 81 AND CATEGORY = calm AND NOT issuetype in (Initiative) ORDER BY Rank ASC"
+    'i.e. boardJql = "Team = 81 AND CATEGORY = calm AND NOT issuetype in (Initiative) ORDER BY Rank ASC"
+    boardJql = vbaJiraProperties.Range("E3").Value
+End Function
+
+Public Function bln_TimeTrackingEnabled() As Boolean
+    bln_TimeTrackingEnabled = vbaJiraProperties.Range("E4").Value
+End Function
+
+' Values from Advanced Roadmaps (formely Portfolio)
+
+Public Function teamId() As String 'Field value for Team
+    If vbaJiraProperties.Range("N1").Value = "" Then
+        teamId = InputBox("Please enter the Advanced Roadmaps teamId:", "Jira", vbaJiraProperties.Range("N1").Value)
+    Else
+        teamId = vbaJiraProperties.Range("N1").Value
+    End If
+End Function
+
+Sub UpdateTeamId(control As IRibbonControl)
+
+    If GetJiraTeamResponse(InputBox("Please enter the Advanced Roadmaps teamId:", "Jira", vbaJiraProperties.Range("N1").Value)).StatusCode = Ok Then
+        MsgBox ("Successfully Found Team")
+    Else
+        MsgBox ("Error Finding Team")
+    End If
+
+End Sub
+
+Function GetJiraTeamResponse(ByVal Id As String) As WebResponse
+         
+    ' Create a WebRequest to get the logged in user's details
+    Dim TeamRequest As New WebRequest
+
+    TeamRequest.Resource = "teams-api/1.0/team/{id}"
+    TeamRequest.AddUrlSegment "id", Id
+    TeamRequest.Method = WebMethod.HttpGet
+
+    Dim JiraTeamResponse As New JiraResponse
+    ' Execute the request and work with the response
+    Set GetJiraTeamResponse = JiraTeamResponse.JiraCall(TeamRequest)
+    
+    If GetJiraTeamResponse.StatusCode = Ok Then
+        vbaJiraProperties.Range("M1:N1").Value = Array("teamId:", GetJiraTeamResponse.Data("id"))
+        vbaJiraProperties.Range("M2:N2").Value = Array("teamName:", GetJiraTeamResponse.Data("title"))
+        If Not GetJiraTeamResponse.Data("shareable") Then
+            MsgBox ("Please ensure you share the team: " & GetJiraTeamResponse.Data("title") & " before you run Get Stats From Jira")
+        End If
+    End If
 End Function
 
 Function IsLoggedIn() As Boolean
@@ -172,6 +332,8 @@ Function GetJiraLoginResponse(ByVal name As String, ByVal password As String) As
     LoginRequest.Resource = "api/2/myself"
     LoginRequest.Method = WebMethod.HttpGet
 
+    WebHelpers.EnableLogging = True
+
     ' Set the request format
     ' -> Sets content-type and accept headers and parses the response
     LoginRequest.ContentType = "application/json;charset=UTF-8"
@@ -190,8 +352,22 @@ Function GetJiraLoginResponse(ByVal name As String, ByVal password As String) As
     End If
     
 End Function
+Sub ClearProperties(control As IRibbonControl)
+    vbaJiraProperties.Cells.ClearContents
+End Sub
+Sub ExportProperties(control As IRibbonControl)
+    vbaJiraProperties.Copy
+End Sub
 Sub UpdateUser(control As IRibbonControl)
+
+    Dim oldStatusBar As Boolean
+    oldStatusBar = Application.DisplayStatusBar
+
     LoginUser
+    
+    Application.StatusBar = False
+    Application.DisplayStatusBar = oldStatusBar
+
 End Sub
 Function LoginUser() As Boolean
 
@@ -265,4 +441,5 @@ End Function
 Function date2epoch(myDate)
 date2epoch = DateDiff("s", "01/01/1970 00:00:00", myDate) * 1000
 End Function
+
 

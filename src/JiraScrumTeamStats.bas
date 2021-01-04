@@ -29,6 +29,15 @@ Public DaysInSprint As Long
 Public LastSprintName As String
 Public LastSprintId As Integer
 
+Sub UpdateIssueTypeMapping(control As IRibbonControl)
+    '' Need to validate the inputs
+    vbaJiraProperties.Range("J1:K1").Value = Array("Feature:", InputBox("Name of Jira IssueType that maps to Features?"))
+    vbaJiraProperties.Range("J2:K2").Value = Array("Defect:", InputBox("Name of Jira IssueType that maps to Defects?"))
+    vbaJiraProperties.Range("J3:K3").Value = Array("Risk:", InputBox("Name of Jira IssueType that maps to Risks?"))
+    vbaJiraProperties.Range("J4:K4").Value = Array("Debt:", InputBox("Name of Jira IssueType that maps to Debts?"))
+    vbaJiraProperties.Range("J5:K5").Value = Array("Enabler:", InputBox("Name of Jira IssueType that maps to Enablers?"))
+End Sub
+
 Sub GetTeamStats(control As IRibbonControl)
  
 ''
@@ -47,6 +56,7 @@ Sub GetTeamStats(control As IRibbonControl)
 Application.ScreenUpdating = False
 Application.EnableEvents = False
 Application.Calculation = xlCalculationManual
+ws_TeamStats.Unprotect ("KM_e@UyRnMtTqvWpd3NG")
  
     ' --- Comment out the respective value to enable or suspend logging
     WebHelpers.EnableLogging = True
@@ -92,13 +102,14 @@ Application.Calculation = xlCalculationManual
     funcQualityTimeToResolve
     funcQualityDefectDentisy
     funcQualityFailRate
-    funcScrumTeamStability
+    funcScrumTeamStability ' dependent on callResult(6)
     funcJiraAdminCorrectStatus
     funcJiraAdminCorrectEpicLink
     funcJiraAdminDoneInSprint
-    funcJiraAdminActiveTime
+    funcJiraAdminActiveTime ' dependent on callResult(6)
     
 'Reverse the opening statements that paused calculations and screen updating
+ws_TeamStats.Protect ("KM_e@UyRnMtTqvWpd3NG")
 Application.EnableEvents = True
 Application.ScreenUpdating = True
 Application.Calculation = xlCalculationAutomatic
@@ -871,8 +882,8 @@ End With
  
  
 With ws_TeamStats
-    .Range("BB30").Value = WorksheetFunction.Average(rng_LeadTime)
-    .Range("AD10").Value = Round(WorksheetFunction.Average(rng_LeadTime), 0)
+    .Range("BB30").Value = WorksheetFunction.Median(rng_LeadTime)
+    .Range("AD10").Value = Round(WorksheetFunction.Median(rng_LeadTime), 0)
 End With
 
 End Function
@@ -939,8 +950,8 @@ End With
  
  
 With ws_TeamStats
-    .Range("BB32").Value = WorksheetFunction.Average(rng_TiP)
-    .Range("AD16").Value = Round(WorksheetFunction.Average(rng_TiP), 0)
+    .Range("BB32").Value = WorksheetFunction.Median(rng_TiP)
+    .Range("AD16").Value = Round(WorksheetFunction.Median(rng_TiP), 0)
 End With
  
 End Function
@@ -1039,17 +1050,17 @@ With ws_TeamStats
     .Range("AS4").Value = currentReleaseDate
     .Range("AT4:AX4").Value = Array("Feature", "Defects", "Risks", "Debts", "Enablers")
     .Range("AS5").Value = "Velocity"
-    .Range("AT5").Value = WorksheetFunction.CountIfs(issueTypeRange, "Story", releaseDateRange, currentReleaseDate) ' Feature Velocity
-    .Range("AU5").Value = WorksheetFunction.CountIfs(issueTypeRange, "Bug", releaseDateRange, currentReleaseDate) ' Defects Velocity
-    .Range("AV5").Value = WorksheetFunction.CountIfs(issueTypeRange, "Risks", releaseDateRange, currentReleaseDate) ' Risks Velocity
-    .Range("AW5").Value = WorksheetFunction.CountIfs(issueTypeRange, "Debts", releaseDateRange, currentReleaseDate) ' Debts Velocity
-    .Range("AX5").Value = WorksheetFunction.CountIfs(issueTypeRange, "Task", releaseDateRange, currentReleaseDate) ' Enablers Velocity
+    .Range("AT5").Value = WorksheetFunction.CountIfs(issueTypeRange, vbaJiraProperties.Range("K1").Value, releaseDateRange, currentReleaseDate) ' Feature Velocity
+    .Range("AU5").Value = WorksheetFunction.CountIfs(issueTypeRange, vbaJiraProperties.Range("K2").Value, releaseDateRange, currentReleaseDate) ' Defects Velocity
+    .Range("AV5").Value = WorksheetFunction.CountIfs(issueTypeRange, vbaJiraProperties.Range("K3").Value, releaseDateRange, currentReleaseDate) ' Risks Velocity
+    .Range("AW5").Value = WorksheetFunction.CountIfs(issueTypeRange, vbaJiraProperties.Range("K4").Value, releaseDateRange, currentReleaseDate) ' Debts Velocity
+    .Range("AX5").Value = WorksheetFunction.CountIfs(issueTypeRange, vbaJiraProperties.Range("K5").Value, releaseDateRange, currentReleaseDate) ' Enablers Velocity
     .Range("AS6").Value = "Baseline"
-    .Range("AT6").Value = WorksheetFunction.CountIf(issueTypeRange, "Story") / countOfReleases ' Feature Baseline
-    .Range("AU6").Value = WorksheetFunction.CountIf(issueTypeRange, "Bug") / countOfReleases ' Defects Baseline
-    .Range("AV6").Value = WorksheetFunction.CountIf(issueTypeRange, "Risks") / countOfReleases ' Risks Baseline
-    .Range("AW6").Value = WorksheetFunction.CountIf(issueTypeRange, "Debts") / countOfReleases ' Debts Baseline
-    .Range("AX6").Value = WorksheetFunction.CountIf(issueTypeRange, "Task") / countOfReleases ' Enablers Baseline
+    .Range("AT6").Value = WorksheetFunction.CountIf(issueTypeRange, vbaJiraProperties.Range("K1").Value) / countOfReleases ' Feature Baseline
+    .Range("AU6").Value = WorksheetFunction.CountIf(issueTypeRange, vbaJiraProperties.Range("K2").Value) / countOfReleases ' Defects Baseline
+    .Range("AV6").Value = WorksheetFunction.CountIf(issueTypeRange, vbaJiraProperties.Range("K3").Value) / countOfReleases ' Risks Baseline
+    .Range("AW6").Value = WorksheetFunction.CountIf(issueTypeRange, vbaJiraProperties.Range("K4").Value) / countOfReleases ' Debts Baseline
+    .Range("AX6").Value = WorksheetFunction.CountIf(issueTypeRange, vbaJiraProperties.Range("K5").Value) / countOfReleases ' Enablers Baseline
 End With
  
 End Function
@@ -1093,15 +1104,15 @@ Set issueTypeBacklogRange = ws_IncompleteIssuesData.Range(Cells(2, 3), Cells(ws_
 For Each i In issueTypeDoneRange
     issueType = i.Value
     Select Case issueType
-    Case "Story"
+    Case vbaJiraProperties.Range("K1").Value
         y = 1
-    Case "Bug"
+    Case vbaJiraProperties.Range("K2").Value
         y = 2
-    Case "Risks"
+    Case vbaJiraProperties.Range("K3").Value
         y = 3
-    Case "Debts"
+    Case vbaJiraProperties.Range("K4").Value
         y = 4
-    Case "Task"
+    Case vbaJiraProperties.Range("K5").Value
         y = 5
     Case Else
         y = 0
@@ -1141,15 +1152,15 @@ Next i
 For Each i In issueTypeBacklogRange
     issueType = i.Value
     Select Case issueType
-    Case "Story"
+    Case vbaJiraProperties.Range("K1").Value
         y = 1
-    Case "Bug"
+    Case vbaJiraProperties.Range("K2").Value
         y = 2
-    Case "Risks"
+    Case vbaJiraProperties.Range("K3").Value
         y = 3
-    Case "Debts"
+    Case vbaJiraProperties.Range("K4").Value
         y = 4
-    Case "Task"
+    Case vbaJiraProperties.Range("K5").Value
         y = 5
     Case Else
         y = 0
