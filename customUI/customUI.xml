@@ -4,7 +4,7 @@
        <tab id="tb_Jira" label="Jira">
          <group id="gp_Jira-Agile" label="Jira Agile">
            <splitButton id="mySplitButton1" size="large">
-               <button id="Button1" label="Get Jira Data" image="jira" supertip="This is a splitButton." onAction="GetJiraAgileBoard" />
+               <button id="Button1" label="Get Jira Board Data" image="jira" supertip="This is a splitButton." onAction="GetJiraAgileBoard" />
                <menu id="splitMenu1" itemSize="large">
                  <!-- use itemSize = large or use normal -->
                  <button id="Button2" imageMso="SearchCalendarsOnline" label="Update Base URL" onAction="UpdateBaseUrl" description="Update the base URL"/>
@@ -15,15 +15,24 @@
          </group >
          <group id="gp_Jira-Scrum-Stats" label="Jira Stats">
            <splitButton id="mySplitButton2" size="large">
-               <button id="Button5" label="Get Jira Data" imageMso="SparklineColumnInsert" supertip="This is a splitButton." onAction="GetTeamStats" />
+               <button id="Button5" label="Get Stats From Jira" imageMso="SparklineColumnInsert" supertip="This is a splitButton." onAction="GetTeamStats" />
                <menu id="splitMenu2" itemSize="large">
                  <!-- use itemSize = large or use normal -->
                  <button id="Button6" imageMso="SearchCalendarsOnline" label="Update Base URL" onAction="UpdateBaseUrl" description="Update the base URL"/>
                  <button id="Button7" imageMso="Head" label="Update Login" onAction="UpdateUser" description="Update Name and Password"/>
                  <button id="Button8" imageMso="TableFind" label="Update Board ID" onAction="UpdateBoardId" description="Update the Board ID"/>
+		<button id="Button9" imageMso="ModuleInsert" label="Update Issue Type Mapping" onAction="UpdateIssueTypeMapping" description="Update the Issue Type mapping"/>
+		<button id="Button10" imageMso="PivotTableFieldSettings" label="Update Custom Fields" onAction="UpdateCustomFields" description="Source custom fields for your Jira instance"/>
+		<button id="Button11" imageMso="ResourcePoolRefresh" label="Update Team Id" onAction="UpdateTeamId" description="Update the Advanced Roadmaps Team Id"/>
+		<button id="Button12" imageMso="HeaderFooterRemoveHeaderWord" label="Clear Properties" onAction="ClearProperties" description="Clear all stored properties"/>
+		<button id="Button13" imageMso="HeaderFooterNextSection" label="Export Properties" onAction="ExportProperties" description="Export stored properties"/>
                </menu>
            </splitButton>
          </group >
+         <group id="gp_license" label="via-jira license">
+		<labelControl id="license1" label="Author: Ben Doughton" />
+		<labelControl id="license2" label="License: GNU General Public License v3.0" />
+         </group >	
        </tab> 
      </tabs> 
    </ribbon> 
