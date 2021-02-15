@@ -545,7 +545,7 @@ Public Sub LogRequest(Client As WebClient, Request As WebRequest)
 ''
 ' Start Custom addition for Status Bar : Ben Doughton
     Application.DisplayStatusBar = True
-    Application.StatusBar = "Waiting for Request..." & Format(Now, "Long Time") & "--> " & MethodToName(Request.Method) & " " & Client.GetFullUrl(Request)
+    Application.StatusBar = "Waiting for Request..." & Format(Now, "Long Time") & "--> " & MethodToName(Request.Method) & " " & Left(Client.GetFullUrl(Request), 100)
 ' End Custom Code
 ''
     

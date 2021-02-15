@@ -30,12 +30,151 @@ Public LastSprintName As String
 Public LastSprintId As Integer
 
 Sub UpdateIssueTypeMapping(control As IRibbonControl)
-    '' Need to validate the inputs
-    vbaJiraProperties.Range("J1:K1").Value = Array("Feature:", InputBox("Name of Jira IssueType that maps to Features?"))
-    vbaJiraProperties.Range("J2:K2").Value = Array("Defect:", InputBox("Name of Jira IssueType that maps to Defects?"))
-    vbaJiraProperties.Range("J3:K3").Value = Array("Risk:", InputBox("Name of Jira IssueType that maps to Risks?"))
-    vbaJiraProperties.Range("J4:K4").Value = Array("Debt:", InputBox("Name of Jira IssueType that maps to Debts?"))
-    vbaJiraProperties.Range("J5:K5").Value = Array("Enabler:", InputBox("Name of Jira IssueType that maps to Enablers?"))
+
+    '' Need to use this data in other macros
+    '' needs refactoring to remove duplication of code into sub functions
+    
+    Dim arr() As String
+    Dim i As Integer
+    Dim strFeatures$, strDefects$, strRisks$, strDebts As String
+     
+    '' Set the Default values based on either the Jira Default or the Last Saved values
+    If vbaJiraProperties.Range("K1") = 0 Then
+        strFeatures = "Story"
+    Else
+        strFeatures = vbaJiraProperties.Range("K1").Value
+    End If
+    If vbaJiraProperties.Range("K2") = 0 Then
+        strDefects = "Bug"
+    Else
+        strDefects = vbaJiraProperties.Range("K2").Value
+    End If
+    If vbaJiraProperties.Range("K3") = 0 Then
+        strRisks = ""
+    Else
+        strRisks = vbaJiraProperties.Range("K3").Value
+    End If
+    If vbaJiraProperties.Range("K4") = 0 Then
+        strDebts = ""
+    Else
+        strDebts = vbaJiraProperties.Range("K4").Value
+    End If
+    
+    '' Define the new API Request
+    Dim IssueTypeRequest As New WebRequest
+    With IssueTypeRequest
+        .Resource = "api/2/issuetype"
+        .Method = WebMethod.HttpGet
+    End With
+               
+    Dim IssueTypeJiraResponse As New JiraResponse
+    Dim IssueTypeResponse As New WebResponse
+     
+    Set IssueTypeResponse = IssueTypeJiraResponse.JiraCall(IssueTypeRequest)
+     
+    If IssueTypeResponse.StatusCode = 200 Then
+        Dim JiraIssueTypeIndex As Long
+        Dim foundIssue() As Boolean
+        
+        vbaJiraProperties.Range("J1:K1").Value = Array("Features:", _
+            InputBox("Name of Jira IssueType(s) that maps to Features? Seperate multiple Issue Types with a comma (,)", _
+            "Features", strFeatures))
+        arr = Split(vbaJiraProperties.Range("K1"), ",")
+        For i = LBound(arr) To UBound(arr)
+            ReDim foundIssue(0 To UBound(arr)) As Boolean
+            foundIssue(i) = False
+            For JiraIssueTypeIndex = 1 To IssueTypeResponse.Data.Count
+                    If IssueTypeResponse.Data(JiraIssueTypeIndex)("name") = arr(i) Then
+                        If IssueTypeResponse.Data(JiraIssueTypeIndex)("subtask") = True Then
+                            MsgBox ("The following Issue Type is a Sub-Task, please try again: " & arr(i))
+                            Exit Sub
+                        Else
+                            foundIssue(i) = True
+                            Exit For
+                        End If
+                    End If
+            Next JiraIssueTypeIndex
+            If Not foundIssue(i) Then ' If the issue type could not be found in Jira
+                MsgBox ("The following Issue Type could not be found in Jira, please try again: " & arr(i))
+                Exit Sub
+            End If
+        Next i
+            
+        vbaJiraProperties.Range("J2:K2").Value = Array("Defects:", _
+            InputBox("Name of Jira IssueType(s) that maps to Defects? Seperate multiple Issue Types with a comma (,)", _
+            "Defects", strDefects))
+        arr = Split(vbaJiraProperties.Range("K2"), ",")
+        For i = LBound(arr) To UBound(arr)
+            ReDim foundIssue(0 To UBound(arr)) As Boolean
+            foundIssue(i) = False
+            For JiraIssueTypeIndex = 1 To IssueTypeResponse.Data.Count
+                    If IssueTypeResponse.Data(JiraIssueTypeIndex)("name") = arr(i) Then
+                        If IssueTypeResponse.Data(JiraIssueTypeIndex)("subtask") = True Then
+                            MsgBox ("The following Issue Type is a Sub-Task, please try again: " & arr(i))
+                            Exit Sub
+                        Else
+                            foundIssue(i) = True
+                            Exit For
+                        End If
+                    End If
+            Next JiraIssueTypeIndex
+            If Not foundIssue(i) Then ' If the issue type could not be found in Jira
+                MsgBox ("The following Issue Type could not be found in Jira, please try again: " & arr(i))
+                Exit Sub
+            End If
+        Next i
+        
+        vbaJiraProperties.Range("J3:K3").Value = Array("Risks:", _
+            InputBox("Name of Jira IssueType(s) that maps to Risks? Seperate multiple Issue Types with a comma (,)", _
+            "Risks", strRisks))
+        arr = Split(vbaJiraProperties.Range("K3"), ",")
+        For i = LBound(arr) To UBound(arr)
+            ReDim foundIssue(0 To UBound(arr)) As Boolean
+            foundIssue(i) = False
+            For JiraIssueTypeIndex = 1 To IssueTypeResponse.Data.Count
+                    If IssueTypeResponse.Data(JiraIssueTypeIndex)("name") = arr(i) Then
+                        If IssueTypeResponse.Data(JiraIssueTypeIndex)("subtask") = True Then
+                            MsgBox ("The following Issue Type is a Sub-Task, please try again: " & arr(i))
+                            Exit Sub
+                        Else
+                            foundIssue(i) = True
+                            Exit For
+                        End If
+                    End If
+            Next JiraIssueTypeIndex
+            If Not foundIssue(i) Then ' If the issue type could not be found in Jira
+                MsgBox ("The following Issue Type could not be found in Jira, please try again: " & arr(i))
+                Exit Sub
+            End If
+        Next i
+        
+        vbaJiraProperties.Range("J4:K4").Value = Array("Debts:", _
+            InputBox("Name of Jira IssueType(s) that maps to Debts? Seperate multiple Issue Types with a comma (,)", _
+            "Debts", strDebts))
+        arr = Split(vbaJiraProperties.Range("K4"), ",")
+        For i = LBound(arr) To UBound(arr)
+            ReDim foundIssue(0 To UBound(arr)) As Boolean
+            foundIssue(i) = False
+            For JiraIssueTypeIndex = 1 To IssueTypeResponse.Data.Count
+                    If IssueTypeResponse.Data(JiraIssueTypeIndex)("name") = arr(i) Then
+                        If IssueTypeResponse.Data(JiraIssueTypeIndex)("subtask") = True Then
+                            MsgBox ("The following Issue Type is a Sub-Task, please try again: " & arr(i))
+                            Exit Sub
+                        Else
+                            foundIssue(i) = True
+                            Exit For
+                        End If
+                    End If
+            Next JiraIssueTypeIndex
+            If Not foundIssue(i) Then ' If the issue type could not be found in Jira
+                MsgBox ("The following Issue Type could not be found in Jira, please try again: " & arr(i))
+                Exit Sub
+            End If
+        Next i
+        MsgBox ("Successfully Updated")
+    Else
+        MsgBox ("Error Getting Issue Types from Jira: " & IssueTypeResponse.StatusCode)
+    End If
 End Sub
 
 Sub GetTeamStats(control As IRibbonControl)
@@ -74,8 +213,9 @@ ws_TeamStats.Unprotect ("KM_e@UyRnMtTqvWpd3NG")
     Else
         blnRoll = False
     End If
-    funcRollStats (blnRoll)
-    
+    funcRollStats (blnRoll) 'Roll the stats
+    funcAsOfDateTeamName 'Update the TeamName and As Of Data
+        
     ''Fetch Data from Api Calls
     Dim callResult(1 To 7) As WebStatusCode
     callResult(1) = funcGet3MonthsOfDoneJiras(boardJql, "In Progress", "Done", 0, 2)
@@ -85,6 +225,17 @@ ws_TeamStats.Unprotect ("KM_e@UyRnMtTqvWpd3NG")
     callResult(5) = funcGetVelocity(rapidViewId)
     callResult(6) = funcPostTeamsFind()
     callResult(7) = funcGetSprintBurnDown(rapidViewId, CStr(ws_VelocityData.Range("A2").Value))
+    
+    Dim item As Variant
+    For Each item In callResult
+        Debug.Print item
+    Next item
+    For Each item In callResult
+        If item <> 200 Then
+            MsgBox ("Error")
+            Exit Sub
+        End If
+    Next item
  
     'Run the calculations - note the order is specfic
     funcPredictabilitySprintsEstimated
@@ -102,11 +253,10 @@ ws_TeamStats.Unprotect ("KM_e@UyRnMtTqvWpd3NG")
     funcQualityTimeToResolve
     funcQualityDefectDentisy
     funcQualityFailRate
-    funcScrumTeamStability ' dependent on callResult(6)
-    funcJiraAdminCorrectStatus
-    funcJiraAdminCorrectEpicLink
-    funcJiraAdminDoneInSprint
-    funcJiraAdminActiveTime ' dependent on callResult(6)
+    funcScrumTeamStability
+    funcJiraAdminActiveTime
+
+ws_TeamStats.Activate
     
 'Reverse the opening statements that paused calculations and screen updating
 ws_TeamStats.Protect ("KM_e@UyRnMtTqvWpd3NG")
@@ -133,10 +283,6 @@ If Enabled Then
         .Range("AW22:BA44").Value = .Range("AX22:BB44").Value
     End With
 End If
-
-With ws_TeamStats
-    .Range("B2").Value = "Team Name - As Of: " & Format(Now(), "dd-mmm-yy")
-End With
  
 End Function
  
@@ -164,7 +310,7 @@ Dim JQL As String
 JQL = "fixversion changed after -24w AND " & _
         "fixVersion is not EMPTY AND " & _
         "Sprint is not EMPTY AND " & _
-        "NOT issuetype in (Theme,Initiative,Epic,Test,subTaskIssueTypes()) AND " & _
+        "issuetype in (" & issueTypeSearchString & ") AND " & _
         "statusCategory in (Done) AND " & _
         boardJql
  
@@ -191,7 +337,7 @@ End With
            
 Dim JQL_PBI_Search_Response As New JiraResponse
 Dim JQL_Search_Response As New WebResponse
-Dim Item As Object
+Dim item As Object
 Dim history As Object
 Dim changeitem As Object
 Dim fixversion As Object
@@ -210,14 +356,14 @@ Set JQL_Search_Response = JQL_PBI_Search_Response.JiraCall(JQL_PBI_Request)
  
 funcGet3MonthsOfDoneJiras = JQL_Search_Response.StatusCode
  
-If funcGet3MonthsOfDoneJiras = Ok Then
+If funcGet3MonthsOfDoneJiras = OK Then
     clearOldData ws_LeadTimeData
     clearOldData ws_WiPData
     Set dictTimeLoggedToStory = New Dictionary
     startAtVal = startAtVal + 1000 'Increment the next start position based on maxResults above -- making this smaller will speed up the API calls
     i = 1 'reset the issue to 1
     WiPRow = r
-    For Each Item In JQL_Search_Response.Data("issues")
+    For Each item In JQL_Search_Response.Data("issues")
         Set dictResourceNm = New Dictionary
         h = 1 'reset the change history to 1
         If CDate(JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate")) >= DateAdd("m", -3, "01/" & Month(Now()) & "/" & Year(Now())) Then 'Only include if the release date was in the last 3 months
@@ -246,6 +392,15 @@ If funcGet3MonthsOfDoneJiras = Ok Then
                                     Next
                                     ws_WiPData.Cells(WiPRow, 4).Value = JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("created")
                                 Case endProgressState 'enter the date the issue transitioned to its endProgressState
+                                    If ws_WiPData.Cells(WiPRow, 1).Value = 0 Then 'If issue transitioned straight to its endProgressState
+                                        ws_WiPData.Cells(WiPRow, 1).Value = JQL_Search_Response.Data("issues")(i)("id")
+                                        ws_WiPData.Cells(WiPRow, 2).Value = JQL_Search_Response.Data("issues")(i)("key")
+                                        ws_WiPData.Cells(WiPRow, 3).Value = JQL_Search_Response.Data("issues")(i)("fields")("issuetype")("name")
+                                        For Each fixversion In JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")
+                                            ws_WiPData.Cells(WiPRow, 6).Value = JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate")  'Always use the 1st fixVersion, even if there are multiple
+                                        Next
+                                        ws_WiPData.Cells(WiPRow, 4).Value = JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("created")
+                                    End If
                                     ws_WiPData.Cells(WiPRow, 5).Value = JQL_Search_Response.Data("issues")(i)("changelog")("histories")(h)("created")
                                     WiPRow = WiPRow + 1
                             End Select
@@ -291,7 +446,7 @@ If funcGet3MonthsOfDoneJiras = Ok Then
         Set JQL_Search_Response = JQL_SubTask_Search_Response.JiraCall(JQL_SubTask_Request)
  
         i = 1 'reset the issue to 1
-        For Each Item In JQL_Search_Response.Data("issues")
+        For Each item In JQL_Search_Response.Data("issues")
             h = 1 'reset the change history to 1
             With ws_LeadTimeData
                 For Each history In JQL_Search_Response.Data("issues")(i)("changelog")("histories")
@@ -386,13 +541,13 @@ Set JQL_Search_Response = JQL_PBI_Search_Response.JiraCall(JQL_PBI_Request)
 funcGetIncompleteJiras = JQL_Search_Response.StatusCode
  
 Dim i%, s As Integer
-Dim Item As Object
+Dim item As Object
  
-If funcGetIncompleteJiras = Ok Then
+If funcGetIncompleteJiras = OK Then
     clearOldData ws_IncompleteIssuesData
     startAtVal = startAtVal + 1000 'Increment the next start position based on maxResults above
     i = 1 'reset the issue to 1
-    For Each Item In JQL_Search_Response.Data("issues")
+    For Each item In JQL_Search_Response.Data("issues")
         With ws_IncompleteIssuesData
            .Cells(r, 1).Value = JQL_Search_Response.Data("issues")(i)("id")
             .Cells(r, 2).Value = JQL_Search_Response.Data("issues")(i)("key")
@@ -412,7 +567,7 @@ If funcGetIncompleteJiras = Ok Then
         End With
         i = i + 1 'increment the issue
         r = r + 1 'increment the row
-    Next Item
+    Next item
 End If
  
 End Function
@@ -436,7 +591,7 @@ Dim JQL As String
 JQL = "fixversion changed after -60w AND " & _
         "fixVersion is not EMPTY AND " & _
         "Sprint is not EMPTY AND " & _
-        "NOT issuetype in (Theme,Initiative,Epic,Test,subTaskIssueTypes()) AND " & _
+        "issuetype in (" & issueTypeSearchString & ") AND " & _
         "statusCategory in (Done) AND " & _
         boardJql
        
@@ -465,13 +620,13 @@ Set JQL_Search_Response = JQL_PBI_Search_Response.JiraCall(JQL_PBI_Request)
 funcGet12MonthDoneJiras = JQL_Search_Response.StatusCode
  
 Dim i%, s As Integer
-Dim Item As Object
+Dim item As Object
  
-If funcGet12MonthDoneJiras = Ok Then
+If funcGet12MonthDoneJiras = OK Then
     clearOldData ws_DoneData
     startAtVal = startAtVal + 1000 'Increment the next start position based on maxResults above
     i = 1 'reset the issue to 1
-    For Each Item In JQL_Search_Response.Data("issues")
+    For Each item In JQL_Search_Response.Data("issues")
         If CDate(JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate")) >= DateAdd("m", -12, "01/" & Month(Now()) & "/" & Year(Now())) Then 'Only include if the release date was in the last 12 months
             With ws_DoneData
                 .Cells(r, 1).Value = JQL_Search_Response.Data("issues")(i)("id")
@@ -486,7 +641,7 @@ If funcGet12MonthDoneJiras = Ok Then
             r = r + 1 'increment the row
         End If
         i = i + 1 'increment the issue
-    Next Item
+    Next item
 End If
  
 End Function
@@ -506,7 +661,9 @@ Private Function funcGetDefects(ByVal boardJql As String, ByRef startAtVal, r As
 ' (1) needs to be updated to run for a smaller number of maxresults
  
 Dim JQL As String
-JQL = "issuetype in (Bug,Defect) AND created >= startOfMonth(-3) AND " & _
+''Get the string of Defect issue types from the vbaJiraProperties
+'' This no longer includes SubTasks for the calculation of defect density
+JQL = "issuetype in (" & vbaJiraProperties.Range("K2").Value & ") AND created >= startOfMonth(-3) AND " & _
         boardJql
        
 Dim apiFields As String
@@ -535,13 +692,13 @@ Set JQL_Search_Response = JQL_PBI_Search_Response.JiraCall(JQL_PBI_Request)
 funcGetDefects = JQL_Search_Response.StatusCode
  
 Dim i%, s As Integer
-Dim Item As Object
+Dim item As Object
   
-If funcGetDefects = Ok Then
+If funcGetDefects = OK Then
     clearOldData ws_DefectData
     startAtVal = startAtVal + 1000 'Increment the next start position based on maxResults above
     i = 1 'reset the issue to 1
-    For Each Item In JQL_Search_Response.Data("issues")
+    For Each item In JQL_Search_Response.Data("issues")
             With ws_DefectData
                 .Cells(r, 1).Value = JQL_Search_Response.Data("issues")(i)("id")
                 .Cells(r, 2).Value = JQL_Search_Response.Data("issues")(i)("key")
@@ -553,7 +710,7 @@ If funcGetDefects = Ok Then
             End With
             r = r + 1 'increment the row
         i = i + 1 'increment the issue
-    Next Item
+    Next item
 End If
  
 End Function
@@ -583,14 +740,14 @@ Set VelocityResponse = VelocityChartResponse.JiraCall(VelocityChartRequest)
  
 funcGetVelocity = VelocityResponse.StatusCode
  
-Dim Item As Object
+Dim item As Object
 Dim r%, s As Integer
  
-If funcGetVelocity = Ok Then
+If funcGetVelocity = OK Then
     r = 2
     s = 1
     clearOldData ws_VelocityData
-    For Each Item In VelocityResponse.Data("sprints")
+    For Each item In VelocityResponse.Data("sprints")
         With ws_VelocityData
             .Cells(r, 1).Value = VelocityResponse.Data("sprints")(s)("id") ' SprintId
             .Cells(r, 2).Value = VelocityResponse.Data("sprints")(s)("name") 'SprintName
@@ -641,7 +798,7 @@ funcPostTeamsFind = PostTeamsResponse.StatusCode
 Dim jiraTeam, jiraResource, jiraPerson As Object
 Dim t%, p%, r%, l As Integer
  
-If funcPostTeamsFind = Ok Then
+If funcPostTeamsFind = OK Then
     t = 1 'reset the teams to 1
     r = 2
     clearOldData ws_TeamsData
@@ -706,7 +863,7 @@ Set SprintBurnDownResponse = SprintBurnDownChartResponse.JiraCall(SprintBurnDown
  
 funcGetSprintBurnDown = SprintBurnDownResponse.StatusCode
  
-If funcGetSprintBurnDown = Ok Then
+If funcGetSprintBurnDown = OK Then
     clearOldData ws_Work
     RemainingSprintTime = 0
     DaysInSprint = 0
@@ -775,15 +932,15 @@ SubTaskEstimate = Excel.WorksheetFunction.Sum(ws_IncompleteIssuesData.Range("I:I
                     / 3600
                    
 'StoryPointEstimate calculated as _
-    = Total StoryPoints from backlog (excluding Epics and stories greater than 20) / Average Velocity from last 7 sprints
-StoryPointEstimate = Excel.WorksheetFunction.SumIfs(ws_IncompleteIssuesData.Range("F:F"), ws_IncompleteIssuesData.Range("F:F"), "<20", ws_IncompleteIssuesData.Range("C:C"), "<>Epic") _
+    = Total StoryPoints from backlog (excluding Epics) / Average Velocity from last 7 sprints
+StoryPointEstimate = Excel.WorksheetFunction.SumIfs(ws_IncompleteIssuesData.Range("F:F"), ws_IncompleteIssuesData.Range("C:C"), "<>Epic") _
                     / Excel.WorksheetFunction.Average(ws_VelocityData.Range("E:E"))
  
 ''Note: TShirtEstimate is taken to be all Stories with a size of 20 or more. We are not taking Epic estimates into account
  
 'TShirtEstimate calculated as _
-    = Total StoryPoints from backlog (excluding Epics and stories less than 20) / Average Velocity from last 7 sprints
-TShirtEstimate = Excel.WorksheetFunction.SumIfs(ws_IncompleteIssuesData.Range("F:F"), ws_IncompleteIssuesData.Range("F:F"), ">=20", ws_IncompleteIssuesData.Range("C:C"), "<>Epic") _
+    = Total StoryPoints from Epics / Average Velocity from last 7 sprints
+TShirtEstimate = Excel.WorksheetFunction.SumIfs(ws_IncompleteIssuesData.Range("F:F"), ws_IncompleteIssuesData.Range("C:C"), "Epic") _
                     / Excel.WorksheetFunction.Average(ws_VelocityData.Range("E:E"))
  
 With ws_TeamStats
@@ -827,10 +984,14 @@ Dim TipRow As Long
  
 ws_LeadTimeData.Activate
 TiPCol = ws_LeadTimeData.Range("1:1").Find("TiP").Column
-TipRow = ws_LeadTimeData.Cells(1, TiPCol).End(xlDown).row
- 
-Set rng = ws_LeadTimeData.Range(Cells(2, TiPCol), Cells(TipRow, TiPCol))
- 
+If ws_LeadTimeData.Range("A2").Value = 0 Then ' If no LeadTimeData then end function
+    Debug.Print "No LeadTimeData for funcPredicatabiltyTiPVariability"
+    Exit Function
+Else
+    TipRow = ws_LeadTimeData.Cells(1, TiPCol).End(xlDown).row
+    Set rng = ws_LeadTimeData.Range(Cells(2, TiPCol), Cells(TipRow, TiPCol))
+End If
+
 With ws_TeamStats
     .Range("BB27").Value = Excel.WorksheetFunction.StDev_P(rng) / Excel.WorksheetFunction.Average(rng)
     .Range("J16").Value = Excel.WorksheetFunction.StDev_P(rng) / Excel.WorksheetFunction.Average(rng)
@@ -863,23 +1024,21 @@ Private Function funcResponsivenessLeadTime()
 '
 ''
  
-Dim col As Integer
 Dim rng_LeadTime As Range
 Dim c As Range
  
 With ws_LeadTimeData
     .Activate
-    col = .Range("A1").End(xlToRight).Column + 1
-    .Cells(1, col).Value = "leadTime"
- 
-    Set rng_LeadTime = .Range(Cells(2, col), Cells(.Range("A1").End(xlDown).row, col))
- 
-    For Each c In rng_LeadTime
-        c.Value = CDate(.Cells(c.row, 6).Value) - CDate(Left(.Cells(c.row, 4).Value, 10))
-    Next c
-   
+    If .Range("A2").Value = 0 Then ' If no LeadTimeData then exit the function
+        Debug.Print "No LeadTimeData for funcResponsivenessLeadTime"
+        Exit Function
+    Else
+       Set rng_LeadTime = .Range(Cells(2, 9), Cells(.Range("A1").End(xlDown).row, 9))
+       For Each c In rng_LeadTime
+           c.Value = CDate(.Cells(c.row, 6).Value) - CDate(Left(.Cells(c.row, 4).Value, 10))
+       Next c
+    End If
 End With
- 
  
 With ws_TeamStats
     .Range("BB30").Value = WorksheetFunction.Median(rng_LeadTime)
@@ -905,6 +1064,11 @@ Dim cell As Range
  
 Set dict = New Dictionary
        
+If ws_LeadTimeData.Range("A2").Value = 0 Then ' If no LeadTimeData then exit the function
+    Debug.Print "No LeadTimeData for funcResponsivenessDeploymentFrequency"
+    Exit Function
+End If
+
 For Each cell In ws_LeadTimeData.Range(Cells(2, 6), Cells(ws_LeadTimeData.Range("F1").End(xlDown).row, 6))
     If cell.Value >= DateAdd("m", -1, "01/" & Month(Now()) & "/" & Year(Now())) Then ' only count if after start of previous month
         If cell.Value < CDate("01/" & Month(Now()) & "/" & Year(Now())) Then ' only count if before start of current month
@@ -914,7 +1078,7 @@ For Each cell In ws_LeadTimeData.Range(Cells(2, 6), Cells(ws_LeadTimeData.Range(
         End If
     End If
 Next
- 
+
 With ws_TeamStats
     .Range("BB31").Value = dict.Count
     .Range("AM10").Value = dict.Count
@@ -931,23 +1095,23 @@ Private Function funcResponsivenessTiP()
 '
 ''
  
-Dim col As Integer
 Dim rng_TiP As Range
 Dim c As Range
  
 With ws_LeadTimeData
  
-    col = .Range("A1").End(xlToRight).Column + 1
-    .Cells(1, col).Value = "TiP"
+    If .Range("A2").Value = 0 Then ' If no LeadTimeData then exit the function
+        Debug.Print "No LeadTimeData for funcResponsivenessTiP"
+        Exit Function
+    End If
  
-    Set rng_TiP = .Range(Cells(2, col), Cells(.Range("A1").End(xlDown).row, col))
+    Set rng_TiP = .Range(Cells(2, 10), Cells(.Range("A1").End(xlDown).row, 10))
  
     For Each c In rng_TiP
         c.Value = CDate(.Cells(c.row, 6).Value) - CDate(Left(.Cells(c.row, 5).Value, 10))
     Next c
    
 End With
- 
  
 With ws_TeamStats
     .Range("BB32").Value = WorksheetFunction.Median(rng_TiP)
@@ -966,6 +1130,12 @@ Private Function funcResponsivenessWiP()
 ''
 Dim startDatesRange As Range, endDatesRange As Range
 ws_WiPData.Activate
+
+If ws_WiPData.Range("A2").Value = 0 Then ' If no WiPData then exit the function
+    Debug.Print "No WiPData for funcResponsivenessWiP"
+    Exit Function
+End If
+
 Set startDatesRange = ws_WiPData.Range(Cells(2, 4), Cells(ws_WiPData.Range("D2").End(xlDown).row, 4))
 Set endDatesRange = ws_WiPData.Range(Cells(2, 5), Cells(ws_WiPData.Range("E2").End(xlDown).row, 5))
 
@@ -1008,9 +1178,7 @@ With ws_TeamStats
     .Range("BB33").Value = WorksheetFunction.Average(ws_WiPData.Range(Cells(2, 7), Cells(startDatesRange.Rows.Count + 1, 7)))
     .Range("AM16").Value = WorksheetFunction.Average(ws_WiPData.Range(Cells(2, 7), Cells(startDatesRange.Rows.Count + 1, 7)))
 End With
- 
-MsgBox ("Done")
- 
+
 End Function
 Private Function funcProductivityReleaseVelocity()
  
@@ -1030,6 +1198,13 @@ Set dict = New Dictionary
 
 currentReleaseDate = 0
 ws_LeadTimeData.Activate
+
+If ws_LeadTimeData.Range("A2").Value = 0 Then ' If no LeadTimeData then exit the function
+    Debug.Print "No LeadTimeData for funcProductivityReleaseVelocity"
+    Exit Function
+End If
+
+
 Set releaseDateRange = ws_LeadTimeData.Range(Cells(2, 6), Cells(ws_LeadTimeData.Range("F2").End(xlDown).row, 6))
 Set issueTypeRange = ws_LeadTimeData.Range(Cells(2, 3), Cells(ws_LeadTimeData.Range("C2").End(xlDown).row, 3))
 
@@ -1046,24 +1221,64 @@ Next c
 
 countOfReleases = dict.Count
 
+Dim arr As Variant
+Dim i As Integer
+
 With ws_TeamStats
     .Range("AS4").Value = currentReleaseDate
-    .Range("AT4:AX4").Value = Array("Feature", "Defects", "Risks", "Debts", "Enablers")
+    .Range("AT4:AX4").Value = Array("Feature", "Defects", "Risks", "Debts")
     .Range("AS5").Value = "Velocity"
-    .Range("AT5").Value = WorksheetFunction.CountIfs(issueTypeRange, vbaJiraProperties.Range("K1").Value, releaseDateRange, currentReleaseDate) ' Feature Velocity
-    .Range("AU5").Value = WorksheetFunction.CountIfs(issueTypeRange, vbaJiraProperties.Range("K2").Value, releaseDateRange, currentReleaseDate) ' Defects Velocity
-    .Range("AV5").Value = WorksheetFunction.CountIfs(issueTypeRange, vbaJiraProperties.Range("K3").Value, releaseDateRange, currentReleaseDate) ' Risks Velocity
-    .Range("AW5").Value = WorksheetFunction.CountIfs(issueTypeRange, vbaJiraProperties.Range("K4").Value, releaseDateRange, currentReleaseDate) ' Debts Velocity
-    .Range("AX5").Value = WorksheetFunction.CountIfs(issueTypeRange, vbaJiraProperties.Range("K5").Value, releaseDateRange, currentReleaseDate) ' Enablers Velocity
+    .Range("AT5").Value = funcVelocity(Split(vbaJiraProperties.Range("K1").Value, ","), _
+                                        issueTypeRange, releaseDateRange, currentReleaseDate) '' Features Velocity
+    .Range("AU5").Value = funcVelocity(Split(vbaJiraProperties.Range("K2").Value, ","), _
+                                        issueTypeRange, releaseDateRange, currentReleaseDate) '' Defects Velocity
+    .Range("AV5").Value = funcVelocity(Split(vbaJiraProperties.Range("K3").Value, ","), _
+                                        issueTypeRange, releaseDateRange, currentReleaseDate) '' Risks Velocity
+    .Range("AW5").Value = funcVelocity(Split(vbaJiraProperties.Range("K4").Value, ","), _
+                                        issueTypeRange, releaseDateRange, currentReleaseDate) '' Debts Velocity
     .Range("AS6").Value = "Baseline"
-    .Range("AT6").Value = WorksheetFunction.CountIf(issueTypeRange, vbaJiraProperties.Range("K1").Value) / countOfReleases ' Feature Baseline
-    .Range("AU6").Value = WorksheetFunction.CountIf(issueTypeRange, vbaJiraProperties.Range("K2").Value) / countOfReleases ' Defects Baseline
-    .Range("AV6").Value = WorksheetFunction.CountIf(issueTypeRange, vbaJiraProperties.Range("K3").Value) / countOfReleases ' Risks Baseline
-    .Range("AW6").Value = WorksheetFunction.CountIf(issueTypeRange, vbaJiraProperties.Range("K4").Value) / countOfReleases ' Debts Baseline
-    .Range("AX6").Value = WorksheetFunction.CountIf(issueTypeRange, vbaJiraProperties.Range("K5").Value) / countOfReleases ' Enablers Baseline
+    .Range("AT6").Value = funcBaselineVelocity(Split(vbaJiraProperties.Range("K1").Value, ","), _
+                                        issueTypeRange, countOfReleases) '' Features Baseline
+    .Range("AU6").Value = funcBaselineVelocity(Split(vbaJiraProperties.Range("K2").Value, ","), _
+                                        issueTypeRange, countOfReleases) '' Defects Baseline
+    .Range("AV6").Value = funcBaselineVelocity(Split(vbaJiraProperties.Range("K3").Value, ","), _
+                                        issueTypeRange, countOfReleases) '' Risks Baseline
+    .Range("AW6").Value = funcBaselineVelocity(Split(vbaJiraProperties.Range("K4").Value, ","), _
+                                        issueTypeRange, countOfReleases) '' Debts Baseline
 End With
  
 End Function
+
+Private Function funcVelocity(ByVal arr As Variant, ByVal issueTypeRange As Range, _
+                                                                                ByVal releaseDateRange As Range, _
+                                                                                ByVal currentReleaseDate As Long) As Long
+    Dim i As Integer
+
+    For i = LBound(arr) To UBound(arr)
+        If i = LBound(arr) Then
+            funcVelocity = WorksheetFunction.CountIfs(issueTypeRange, arr(i), releaseDateRange, currentReleaseDate)
+        Else
+            funcVelocity = funcVelocity + WorksheetFunction.CountIfs(issueTypeRange, arr(i), releaseDateRange, currentReleaseDate)
+        End If
+    Next i
+
+End Function
+
+Private Function funcBaselineVelocity(ByVal arr As Variant, ByVal issueTypeRange As Range, _
+                                                                                ByVal countOfReleases As Integer) As Long
+    Dim i As Integer
+    
+    For i = LBound(arr) To UBound(arr)
+        If i = LBound(arr) Then
+            funcBaselineVelocity = WorksheetFunction.CountIf(issueTypeRange, arr(i))
+        Else
+            funcBaselineVelocity = funcBaselineVelocity + WorksheetFunction.CountIf(issueTypeRange, arr(i))
+        End If
+    Next i
+    funcBaselineVelocity = funcBaselineVelocity / countOfReleases
+    
+End Function
+
 Private Function funcProductivityEfficiency()
  
 '' Update the TeamStats worksheet with the *Efficiency* calcualtion
@@ -1088,7 +1303,7 @@ Private Function funcProductivityDistribution()
 '
 ''
  
-Dim Arr(1 To 5, 1 To 13) As Long
+Dim arr(1 To 5, 1 To 13) As Long
 Dim x%, y As Integer
 Dim issueTypeDoneRange As Range
 Dim issueTypeBacklogRange As Range
@@ -1096,27 +1311,35 @@ Dim issueType As String
 Dim releaseDate As Long
 Dim i As Range
 
+If ws_DoneData.Range("C3").Value = 0 Then ' If there is no DoneData exit the function
+    Debug.Print "No ws_DoneData for funcProductivityDistribution"
+    Exit Function
+End If
+
 ws_DoneData.Activate
 Set issueTypeDoneRange = ws_DoneData.Range(Cells(2, 3), Cells(ws_DoneData.Range("C2").End(xlDown).row, 3))
+
+If ws_IncompleteIssuesData.Range("C3").Value = 0 Then ' If there is no IncompleteData exit the function
+    Debug.Print "No ws_IncompleteIssuesData for funcProductivityDistribution"
+    Exit Function
+End If
+
 ws_IncompleteIssuesData.Activate
 Set issueTypeBacklogRange = ws_IncompleteIssuesData.Range(Cells(2, 3), Cells(ws_IncompleteIssuesData.Range("C2").End(xlDown).row, 3))
 
 For Each i In issueTypeDoneRange
     issueType = i.Value
-    Select Case issueType
-    Case vbaJiraProperties.Range("K1").Value
+    If Contains(Split(vbaJiraProperties.Range("K1").Value, ","), issueType) Then ' Feature
         y = 1
-    Case vbaJiraProperties.Range("K2").Value
+    ElseIf Contains(Split(vbaJiraProperties.Range("K2").Value, ","), issueType) Then ' Defect
         y = 2
-    Case vbaJiraProperties.Range("K3").Value
+    ElseIf Contains(Split(vbaJiraProperties.Range("K3").Value, ","), issueType) Then ' Risk
         y = 3
-    Case vbaJiraProperties.Range("K4").Value
+    ElseIf Contains(Split(vbaJiraProperties.Range("K4").Value, ","), issueType) Then 'Debt
         y = 4
-    Case vbaJiraProperties.Range("K5").Value
-        y = 5
-    Case Else
+    Else
         y = 0
-    End Select
+    End If
     releaseDate = i.Offset(0, 1).Value
     Select Case releaseDate
     Case WorksheetFunction.EoMonth(Date, -13) To WorksheetFunction.EoMonth(Date, -12)
@@ -1146,27 +1369,24 @@ For Each i In issueTypeDoneRange
     Case Else
         x = 0
     End Select
-    If x > 0 And y > 0 Then Arr(y, x) = Arr(y, x) + 1
+    If x > 0 And y > 0 Then arr(y, x) = arr(y, x) + 1
 Next i
 
 For Each i In issueTypeBacklogRange
     issueType = i.Value
-    Select Case issueType
-    Case vbaJiraProperties.Range("K1").Value
+    If Contains(Split(vbaJiraProperties.Range("K1").Value, ","), issueType) Then ' Feature
         y = 1
-    Case vbaJiraProperties.Range("K2").Value
+    ElseIf Contains(Split(vbaJiraProperties.Range("K2").Value, ","), issueType) Then ' Defect
         y = 2
-    Case vbaJiraProperties.Range("K3").Value
+    ElseIf Contains(Split(vbaJiraProperties.Range("K3").Value, ","), issueType) Then ' Risk
         y = 3
-    Case vbaJiraProperties.Range("K4").Value
+    ElseIf Contains(Split(vbaJiraProperties.Range("K4").Value, ","), issueType) Then 'Debt
         y = 4
-    Case vbaJiraProperties.Range("K5").Value
-        y = 5
-    Case Else
+    Else
         y = 0
-    End Select
+    End If
     x = 13
-    If y > 0 Then Arr(y, x) = Arr(y, x) + 1
+    If y > 0 Then arr(y, x) = arr(y, x) + 1
 Next i
 
 With ws_TeamStats
@@ -1174,9 +1394,8 @@ With ws_TeamStats
     .Range("AS12").Value = "Defects"
     .Range("AS13").Value = "Risks"
     .Range("AS14").Value = "Debts"
-    .Range("AS15").Value = "Enablers"
-    .Range("AT11:BF15").Value = Arr ' Forumla to be updated - Data
-    .Range("AT16:BF16").Value = Array(WorksheetFunction.EoMonth(Date, -12), _
+    .Range("AT11:BF14").Value = arr ' Data
+    .Range("AT15:BF15").Value = Array(WorksheetFunction.EoMonth(Date, -12), _
                                                             WorksheetFunction.EoMonth(Date, -11), _
                                                             WorksheetFunction.EoMonth(Date, -10), _
                                                             WorksheetFunction.EoMonth(Date, -9), _
@@ -1188,33 +1407,58 @@ With ws_TeamStats
                                                             WorksheetFunction.EoMonth(Date, -3), _
                                                             WorksheetFunction.EoMonth(Date, -2), _
                                                             WorksheetFunction.EoMonth(Date, -1), _
-                                                            "Backlog") ' Formula to be updated - Release Months
+                                                            "Backlog") ' Release Months
     .Range("AT16:BE16").NumberFormat = "mmm yy"
 End With
  
 End Function
+Private Function Contains(ByVal arr As Variant, ByVal v As String) As Boolean
+Dim rv As Boolean, lb As Long, ub As Long, i As Long
+    lb = LBound(arr)
+    ub = UBound(arr)
+    For i = lb To ub
+        If arr(i) = v Then
+            rv = True
+            Exit For
+        End If
+    Next i
+    Contains = rv
+End Function
+
 Private Function funcQualityTimeToResolve()
  
 '' Update the TeamStats worksheet with the *Time To Resolve* calcualtion
 ' The value is added both to the sparkline graph
 ' Then the to the board for display
 '
-' Dependent on function: funcGetDoneJiras & funcResponsivenessLeadTime
+' Dependent on function: funcGet3MonthsDoneJiras & funcResponsivenessLeadTime
 '
 ''
+
 Dim leadTimeRange As Range
 Dim issueTypeRange As Range
-Dim col As Integer
+Dim nBugs As Integer
 
-col = ws_LeadTimeData.Range("1:1").Find("leadTime").Column
+If ws_LeadTimeData.Range("A2").Value = 0 Then ' If no LeadTimeData then exit the function
+    Debug.Print "No LeadTimeData for funcQualityTimeToResolve"
+    Exit Function
+End If
 
 ws_LeadTimeData.Activate
-Set leadTimeRange = ws_LeadTimeData.Range(Cells(2, col), Cells(ws_LeadTimeData.Range("F2").End(xlDown).row, col))
+Set leadTimeRange = ws_LeadTimeData.Range(Cells(2, 9), Cells(ws_LeadTimeData.Range("F2").End(xlDown).row, 9))
 Set issueTypeRange = ws_LeadTimeData.Range(Cells(2, 3), Cells(ws_LeadTimeData.Range("C2").End(xlDown).row, 3))
  
+' Make sure there are some Bugs to report
+nBugs = WorksheetFunction.CountIf(issueTypeRange, "Bug")
+ 
 With ws_TeamStats
-    .Range("BB37").Value = WorksheetFunction.AverageIf(issueTypeRange, "Bug", leadTimeRange)
-    .Range("AM24").Value = Round(WorksheetFunction.AverageIf(issueTypeRange, "Bug", leadTimeRange), 0)
+    If nBugs > 0 Then
+        .Range("BB37").Value = WorksheetFunction.AverageIf(issueTypeRange, "Bug", leadTimeRange)
+        .Range("AM24").Value = Round(WorksheetFunction.AverageIf(issueTypeRange, "Bug", leadTimeRange), 0)
+    Else
+        .Range("BB37").Value = 0
+        .Range("AM24").Value = 0
+    End If
 End With
  
 End Function
@@ -1268,9 +1512,22 @@ Private Function funcScrumTeamStability()
 ' The value is added both to the sparkline graph
 ' Then to the board for display
 '
-' Dependent on function: funcPostTeamsFind & ** needs an update to the funcGetSprintBurnDown to track timeSpent per person **
-' I was using funcGet3monthsOfDoneJiras but this was wrong as the time spent is over the total life of the story
-' and not timeboxed to the sprint or 3 months of data being collected, so have removed the logic below and recording 100% temporarily
+' This is an indication of the team's stability. For example, given:
+' If User Portfolio the get the baseline form the Teams data (otherwise we could use the previous period), i.e:
+'   George: 100% dedicated (based on hours allocated per week in portfolio - default 40 - 100%)
+'   Joe: 50%
+'   Jen: 80%
+' Check current reporting period - i.e. most recent completed sprint by searching for time booked to the issues on the team board with:
+' Get agile/1.0/board/{id}/sprint/{id}/issue - which gets all issues from the sprint, including their worklog
+' AND Jira Search jql=worklogDate =>date (start of sprint) and worklogDate =< date (end of sprint) and worklogAuthor in (team members)
+' i.e.:
+'   George: 85% (-15% delta)
+'   Jen: 100% (+20%)
+'   Jeff: 25% (new) (+25%)
+'   Joe: missing (-50)
+' Calculate the TeamGrowth for the team as .2 (Jen) + .25 (Jeff) = .45 divided by the current team size (2) or 22.5%.
+' Calculate the TeamShrinkage for the team would be |-.15| (George) + |-.5| (Joe) = .65 divided by the old team size (2.7) or 24.07%.
+' The total volatility would be the sum of the two prior metrics or 46.57% and Team Stability would be 100 - 46.57/2 = 76.715%
 ''
  
 With ws_TeamStats
@@ -1295,54 +1552,7 @@ With ws_TeamStats
 End With
  
 End Function
-Private Function funcJiraAdminCorrectStatus()
- 
-'' Update the TeamStats worksheet with the *Correct Status* calcualtion
-' The value is added both to the sparkline graph
-' Then to the board for display
-'
-' Dependent on function: funcGetIncompleteJiras
-'
-''
- 
-With ws_TeamStats
-    .Range("BB41").Value = 0 ' Forumla to be updated
-    .Range("J43").Value = 0 ' Forumla to be updated
-End With
- 
-End Function
-Private Function funcJiraAdminCorrectEpicLink()
- 
-'' Update the TeamStats worksheet with the *Correct Project & Epic Link* calcualtion
-' The value is added both to the sparkline graph
-' Then to the board for display
-'
-' Dependent on function: funcGetIncompleteJiras
-'
-''
- 
-With ws_TeamStats
-    .Range("BB42").Value = 0 ' Forumla to be updated
-    .Range("T43").Value = 0 ' Forumla to be updated
-End With
- 
-End Function
-Private Function funcJiraAdminDoneInSprint()
- 
-'' Update the TeamStats worksheet with the *Done In Sprint* calcualtion
-' The value is added both to the sparkline graph
-' Then to the board for display
-'
-' Dependent on function: **NewSprintReport**
-'
-''
- 
-With ws_TeamStats
-    .Range("BB43").Value = "TBC" ' Forumla to be updated
-    .Range("AC43").Value = "TBC" ' Forumla to be updated
-End With
- 
-End Function
+
 Private Function funcJiraAdminActiveTime()
  
 '' Update the TeamStats worksheet with the *Active Time %* calcualtion
@@ -1366,7 +1576,6 @@ daysAllocated = DaysInSprint * WorksheetFunction.SumIf(ws_TeamsData.Range("A:A")
  
 With ws_TeamStats
     .Range("BB41").Value = daysLogged / daysAllocated
-    .Range("J43").Value = Round(daysLogged / daysAllocated, 2)
 End With
  
 End Function
@@ -1410,16 +1619,20 @@ Private Function funcRAG()
 End Function
 Private Function funcAsOfDateTeamName()
  
-'' This function should update the AsOfDate and Team Name displayed on the Dashboard
+'' This function updates the As Of Date and Team Name displayed on the Dashboard
+ 
+With ws_TeamStats
+    .Range("B2").Value = vbaJiraProperties.Range("N2") & " - As Of: " & Format(Now(), "dd-mmm-yy")
+End With
  
 End Function
 Private Function clearOldData(ByVal ws As Worksheet)
  
 Dim rngOldData As Range
     With ws
-        Set rngOldData = .Range("A1").CurrentRegion
-        If rngOldData.Rows.Count > 1 Then
-            Set rngOldData = rngOldData.Resize(rngOldData.Rows.Count - 1).Offset(1)
+        Set rngOldData = .Range("A1").CurrentRegion ' Define the extend of the data range
+        If rngOldData.Rows.Count > 1 Then ' First row is the headings soonly reset if more than one row
+            Set rngOldData = rngOldData.Resize(rngOldData.Rows.Count - 1).Offset(1) ' Remove the headings from the range
             rngOldData.ClearContents ' clear existing data
         End If
     End With
@@ -1453,11 +1666,11 @@ Dim ws As Worksheet
  
 End Function
 Private Function ws_TeamStats() As Worksheet
-    Set ws_TeamStats = CreateWorkSheet("ws_TeamStats")
+    Set ws_TeamStats = CreateWorkSheet("Team Metrics")
 End Function
 Private Function ws_LeadTimeData() As Worksheet
     Dim HeadingsArr As Variant
-    HeadingsArr = Array("id", "key", "issueType", "createdDate", "sprintStartDate", "releaseDate", "totalTime", "totalString")
+    HeadingsArr = Array("id", "key", "issueType", "createdDate", "sprintStartDate", "releaseDate", "totalTime", "totalString", "leadTime", "TiP")
     Set ws_LeadTimeData = CreateWorkSheet("ws_LeadTimeData", HeadingsArr)
 End Function
 Private Function ws_WiPData() As Worksheet
@@ -1500,52 +1713,41 @@ Private Function ws_DefectData() As Worksheet
     HeadingsArr = Array("id", "key", "issueType", "affectsVersion", "affectsVersionReleaseDate")
     Set ws_DefectData = CreateWorkSheet("ws_DefectData", HeadingsArr)
 End Function
-'Private Function teamId() As String
-'''Placeholder to define other values
-'    teamId = "81"
-'End Function
-'Private Function rapidViewId(Optional ByVal Id As String) As String
-'    rapidViewId = "6533"
-'End Function
-'Private Function boardJql() As String
-'''Placeholder to define other values
-'    boardJql = "Team = 81 AND CATEGORY = calm AND NOT issuetype in (Initiative) ORDER BY Rank ASC"
-'End Function
 Private Function ArrayOfDates(ByVal startDate As Long, ByVal endDate As Long) As Variant()
 
-    Dim Arr() As Variant
+    Dim arr() As Variant
     Dim DateLoop As Variant
     Dim i%, totalDays As Integer
     DateLoop = startDate
     totalDays = endDate - startDate
     ReDim ArrayOfDates(1 To totalDays + 1)
-    ReDim Arr(1 To totalDays + 1)
+    ReDim arr(1 To totalDays + 1)
     i = 1
     Do While DateLoop <= endDate
-        Arr(i) = DateLoop
+        arr(i) = DateLoop
         DateLoop = DateLoop + 1
         i = i + 1
     Loop
-    ArrayOfDates = Arr
+    ArrayOfDates = arr
     
 End Function
 Private Function MinMaxDate(ByVal dateRange As Range, ByVal MType As String) As Variant
     Dim c As Range
-    Dim Arr() As Long
+    Dim arr() As Long
     Dim totalDays As Integer
     totalDays = dateRange.Rows.Count
-    ReDim Arr(1 To totalDays)
+    ReDim arr(1 To totalDays)
     Dim i As Integer
     i = 1
     For Each c In dateRange
-        Arr(i) = DateValue(Left(c.Value, 10))
+        arr(i) = DateValue(Left(c.Value, 10))
         i = i + 1
     Next c
     
     If MType = "Max" Then
-        MinMaxDate = WorksheetFunction.Max(Arr)
+        MinMaxDate = WorksheetFunction.Max(arr)
     ElseIf MType = "Min" Then
-        MinMaxDate = WorksheetFunction.Min(Arr)
+        MinMaxDate = WorksheetFunction.Min(arr)
     Else
         MinMaxDate = 0
     End If
@@ -1570,24 +1772,54 @@ Private Function WiP(ByVal row As Long) As Integer
     Dim countRows As Long
     countRows = ws_WiPData.Range("H1").End(xlDown).row - 1
     
-    Dim Arr() As Integer
-    ReDim Arr(1 To headers.Columns.Count)
+    Dim arr() As Integer
+    ReDim arr(1 To headers.Columns.Count)
     Dim c As Range
     Dim i As Integer
     i = 1
     For Each c In headers
         If c.Offset(row).Value = 1 Then
-            Arr(i) = WorksheetFunction.Sum(c.Resize(countRows, 1).Offset(1))
+            arr(i) = WorksheetFunction.Sum(c.Resize(countRows, 1).Offset(1))
         End If
         i = i + 1
     Next c
     
-    WiP = WorksheetFunction.Max(Arr)
+    WiP = WorksheetFunction.Max(arr)
     
 End Function
 Private Function testDate(ByVal cell As Range) As Long
     ''returns the excel date as a Long from a cell value that is formated as a test string 'i.e. "30/05/2020" -->43981
     testDate = CLng(DateValue(cell.Value))
 End Function
+Private Function issueTypeSearchString() As String
+    Dim strFeatures$, strDefects$, strRisks$, strDebts As String
+     
+    '' Get the individual issue type strings
+    strFeatures = vbaJiraProperties.Range("K1").Value
+    strDefects = vbaJiraProperties.Range("K2").Value
+    strRisks = vbaJiraProperties.Range("K3").Value
+    strDebts = vbaJiraProperties.Range("K4").Value
 
+    '' Join all the issue type strings together
+    issueTypeSearchString = strFeatures & "," & strDefects & "," & strRisks & "," & strDebts
+    
+    '' Remove the duplicates using the dictionary method
+    Dim arr As Variant
+    arr = Split(issueTypeSearchString, ",")
+    Dim i As Long
+    Dim d As Dictionary
+    Set d = New Dictionary
+    With d
+        For i = LBound(arr) To UBound(arr)
+            If Not d.Exists(arr(i)) Then
+                d.Add arr(i), 1
+                If d.Count = 1 Then
+                    issueTypeSearchString = arr(i)
+                Else
+                    issueTypeSearchString = issueTypeSearchString & "," & arr(i)
+                End If
+            End If
+        Next
+    End With
 
+End Function
