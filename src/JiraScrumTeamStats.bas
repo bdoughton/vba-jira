@@ -226,10 +226,10 @@ ws_TeamStats.Unprotect ("KM_e@UyRnMtTqvWpd3NG")
     callResult(6) = funcPostTeamsFind()
     callResult(7) = funcGetSprintBurnDown(rapidViewId, CStr(ws_VelocityData.Range("A2").Value))
     
+    ' Input the most recent sprint name
+    ws_TeamStats.Range("AS3").Value = ws_VelocityData.Range("B2").Value
+    
     Dim item As Variant
-    For Each item In callResult
-        Debug.Print item
-    Next item
     For Each item In callResult
         If item <> 200 Then
             MsgBox ("Error")
@@ -280,7 +280,7 @@ Private Function funcRollStats(ByVal Enabled As Boolean)
  
 If Enabled Then
     With ws_TeamStats
-        .Range("AW22:BA44").Value = .Range("AX22:BB44").Value
+        .Range("AW22:BA43").Value = .Range("AX22:BB43").Value
     End With
 End If
  
@@ -926,7 +926,7 @@ DaysInSprint = 9
 'SubTaskEstimate calculated as _
     = aggregateTimeEstimate from backlog / teamsize / working DaysInSprint / working hours in day / seconds in hour
 SubTaskEstimate = Excel.WorksheetFunction.Sum(ws_IncompleteIssuesData.Range("I:I")) _
-                    / Excel.WorksheetFunction.CountIf(ws_TeamsData.Range("A:A"), CInt(teamId)) _
+                    / Excel.WorksheetFunction.CountIf(ws_TeamsData.Range("A:A"), CInt(TeamId)) _
                     / DaysInSprint _
                     / 8 _
                     / 3600
@@ -1285,13 +1285,29 @@ Private Function funcProductivityEfficiency()
 ' The value is added both to the sparkline graph
 ' Then the to the board for display
 '
-' Dependent on function: funcGetDoneJiras
+' Dependent on function: funcGet3MonthsDoneJiras
 '
 ''
+
+Dim avgActiveTime_ms As Long
+Dim avgActiveTime_days As Long
+Dim avgLeadTime_days As Long
+
+With ws_LeadTimeData
+    If .Range("A2").Value = 0 Then ' If there is no LeadTimeData exit the function
+        Debug.Print "No ws_LeadTimeData for funcProductivityEfficiency"
+        Exit Function
+    End If
+    avgActiveTime_ms = Application.WorksheetFunction.Average(.Range("G:G"))
+    avgLeadTime_days = Application.WorksheetFunction.Average(.Range("I:I"))
+End With
+
+    avgActiveTime_days = avgActiveTime_ms / 3600 / 8
  
 With ws_TeamStats
-    .Range("BB35").Value = 0 ' Forumla to be updated
-    .Range("AB24").Value = 0 ' Forumla to be updated
+    .Range("BB43").Value = avgActiveTime_days
+    .Range("BB35").Value = avgActiveTime_days / avgLeadTime_days
+    .Range("AB24").Value = Round(avgActiveTime_days / avgLeadTime_days, 1)
 End With
  
 End Function
@@ -1472,11 +1488,29 @@ Private Function funcQualityDefectDentisy()
 '
 ''
 
-'Count of all issues on the ws_DefectData sheet / the man days over the same period (start of current month -3)
+'Count of all issues on the ws_DefectData sheet that have an affects version within the last 12 weeks / the man days over the same period
+
+If ws_DefectsData.Range("A2").Value = 0 Then ' If no DefectsData then exit the function
+    Debug.Print "No ws_DefectsData for funcQualityDefectDentisy"
+    Exit Function
+End If
+If ws_TeamsData.Range("A2").Value = 0 Then ' If no TeamsData then exit the function
+    Debug.Print "No ws_TeamsData for funcQualityDefectDentisy"
+    Exit Function
+End If
+
+Dim countOfDefects As Long
+Dim countOfManDays As Long
+Dim TeamId As Long
+
+TeamId = vbaJiraProperties.Range("N1").Value
+
+countOfDefects = Application.WorksheetFunction.CountIf(ws_DefectsData.Range("E:E"), ">=" & Today() - (12 * 7))
+countOfManDays = Application.WorksheetFunction.SumIf(ws_TeamsData.Range("A:A"), TeamId, ws_TeamsData.Range("E:E")) * 12 / 8
  
 With ws_TeamStats
-    .Range("BB38").Value = "TBC" ' Forumla to be updated
-    .Range("AM30").Value = "TBC" ' Forumla to be updated
+    .Range("BB38").Value = countOfDefects / countOfManDays
+    .Range("AM30").Value = Round(countOfDefects / countOfManDays, 1)
 End With
  
 End Function
@@ -1531,8 +1565,8 @@ Private Function funcScrumTeamStability()
 ''
  
 With ws_TeamStats
-    .Range("BB22").Value = 1 ' Forumla to be updated
-    .Range("J5").Value = 1 ' Forumla to be updated
+    .Range("BB22").Value = 0.88 ' Forumla to be updated
+    .Range("J5").Value = 0.88 ' Forumla to be updated
 End With
  
 End Function
@@ -1549,6 +1583,7 @@ Private Function funcScrumUnplannedWork()
 With ws_TeamStats
     .Range("BB23").Value = RemainingSprintTime
     .Range("AD5").Value = Jira.jiratime(RemainingSprintTime)
+    .Range("BB42").Value = Application.WorksheetFunction.Sum(ws_Work.Range("C:C")) ' Total Active Time
 End With
  
 End Function
@@ -1572,7 +1607,7 @@ Private Function funcJiraAdminActiveTime()
 Dim daysLogged As Long
 daysLogged = WorksheetFunction.Sum(ws_Work.Range("C:C")) / 3600 / 8
 Dim daysAllocated As Long
-daysAllocated = DaysInSprint * WorksheetFunction.SumIf(ws_TeamsData.Range("A:A"), CLng(teamId), ws_TeamsData.Range("E:E")) / 5
+daysAllocated = DaysInSprint * WorksheetFunction.SumIf(ws_TeamsData.Range("A:A"), CLng(TeamId), ws_TeamsData.Range("E:E")) / 5
  
 With ws_TeamStats
     .Range("BB41").Value = daysLogged / daysAllocated
