@@ -217,7 +217,7 @@ ws_TeamStats.Unprotect ("KM_e@UyRnMtTqvWpd3NG")
     funcAsOfDateTeamName 'Update the TeamName and As Of Data
         
     ''Fetch Data from Api Calls
-    Dim callResult(1 To 7) As WebStatusCode
+    Dim callResult(1 To 9) As WebStatusCode
     callResult(1) = funcGet3MonthsOfDoneJiras(boardJql, "In Progress", "Done", 0, 2)
     callResult(2) = funcGetIncompleteJiras(boardJql, 0, 2)
     callResult(3) = funcGet12MonthDoneJiras(boardJql, 0, 2)
@@ -225,6 +225,8 @@ ws_TeamStats.Unprotect ("KM_e@UyRnMtTqvWpd3NG")
     callResult(5) = funcGetVelocity(rapidViewId)
     callResult(6) = funcPostTeamsFind()
     callResult(7) = funcGetSprintBurnDown(rapidViewId, CStr(ws_VelocityData.Range("A2").Value))
+    callResult(8) = funcGetSprintDetails(CStr(ws_VelocityData.Range("A2").Value))
+    callResult(9) = funcGetSprintWorkLog(TeamResourcesString, CStr(ws_VelocityData.Range("F2").Value), CStr(ws_VelocityData.Range("A2").Value))
     
     ' Input the most recent sprint name
     ws_TeamStats.Range("AS3").Value = ws_VelocityData.Range("B2").Value
@@ -776,7 +778,6 @@ Private Function funcPostTeamsFind() As WebStatusCode
 ' (2) need to add start date, end date and holiday accountability to the teams data
  
 'Dim JsonPost As String
-'JsonPost = "{" & Chr(34) & "maxResults" & Chr(34) & ":50}"
 Dim JiraBody As New Dictionary
 JiraBody.Add "maxResults", 50
  
@@ -806,28 +807,32 @@ If funcPostTeamsFind = OK Then
         .Activate
         For Each jiraTeam In PostTeamsResponse.Data("teams")
             p = 1
-            For Each jiraResource In PostTeamsResponse.Data("teams")(t)("resources")
-                .Cells(r, 1).Value = PostTeamsResponse.Data("teams")(t)("id")
-                .Cells(r, 2).Value = PostTeamsResponse.Data("teams")(t)("title")
-                .Cells(r, 3).Value = PostTeamsResponse.Data("teams")(t)("resources")(p)("id")
-                .Cells(r, 4).Value = PostTeamsResponse.Data("teams")(t)("resources")(p)("personId")
-                If PostTeamsResponse.Data("teams")(t)("resources")(p).Exists("weeklyHours") Then
-                    .Cells(r, 5).Value = PostTeamsResponse.Data("teams")(t)("resources")(p)("weeklyHours")
-                Else
-                    .Cells(r, 5).Value = 40
-                End If
-                p = p + 1
-                r = r + 1
-            Next jiraResource
+            If PostTeamsResponse.Data("teams")(t)("id") = CStr(TeamId) Then ' Only import the Team that matches the one in the properties
+                For Each jiraResource In PostTeamsResponse.Data("teams")(t)("resources")
+                    .Cells(r, 1).Value = PostTeamsResponse.Data("teams")(t)("id")
+                    .Cells(r, 2).Value = PostTeamsResponse.Data("teams")(t)("title")
+                    .Cells(r, 3).Value = PostTeamsResponse.Data("teams")(t)("resources")(p)("id")
+                    .Cells(r, 4).Value = PostTeamsResponse.Data("teams")(t)("resources")(p)("personId")
+                    If PostTeamsResponse.Data("teams")(t)("resources")(p).Exists("weeklyHours") Then
+                        .Cells(r, 5).Value = PostTeamsResponse.Data("teams")(t)("resources")(p)("weeklyHours")
+                    Else
+                        .Cells(r, 5).Value = 40
+                    End If
+                    p = p + 1
+                    r = r + 1
+                Next jiraResource
+            End If
             t = t + 1
         Next jiraTeam
         r = 2
         p = 1
         For Each jiraPerson In PostTeamsResponse.Data("persons")
-            .Cells(r, 6).Value = PostTeamsResponse.Data("persons")(p)("personId")
-            .Cells(r, 7).Value = PostTeamsResponse.Data("persons")(p)("jiraUser")("jiraUsername")
+            If PostTeamsResponse.Data("persons")(p)("personId") = CStr(.Cells(r, 4).Value) Then
+                .Cells(r, 6).Value = PostTeamsResponse.Data("persons")(p)("personId")
+                .Cells(r, 7).Value = PostTeamsResponse.Data("persons")(p)("jiraUser")("jiraUsername")
+                r = r + 1
+            End If
             p = p + 1
-            r = r + 1
         Next jiraPerson
     End With
 End If
@@ -908,7 +913,189 @@ DaysInSprint = DaysInSprint / 86400 / 1000
 
  
 End Function
+
+Private Function funcGetSprintDetails(ByVal requestedSprintId As String) As WebStatusCode
+'' This is technically only required with older versions of Jira that don't have the updated Velocity Chart, otherwise this could be added to funcGetVelocity. I've kept it seperate for backwards compatibility
+
+'Define the new Sprint Request
+Dim Sprint_Request As New WebRequest
+With Sprint_Request
+    .Resource = "agile/1.0/sprint/{sprintId}"
+    .Method = WebMethod.HttpGet
+    .AddUrlSegment "sprintId", requestedSprintId
+End With
+
+Dim Jira_Sprint_Response As New JiraResponse
+Dim Sprint_Response As New WebResponse
  
+Set Sprint_Response = Jira_Sprint_Response.JiraCall(Sprint_Request)
+ 
+If Sprint_Response.StatusCode = OK Then
+    With ws_VelocityData
+        .Cells(1, 6).Value = "Start"
+        .Cells(1, 7).Value = "End"
+        .Cells(2, 6).Value = Sprint_Response.Data("startDate")
+        .Cells(2, 7).Value = Sprint_Response.Data("endDate")
+    End With
+End If
+
+End Function
+
+Private Function funcGetSprintWorkLog(ByVal teamMembers As String, ByVal startDate As String, ByVal requestedSprintId As String, Optional ByVal endDate As String) As WebStatusCode
+ 
+''
+' Source Worklog for Team and Board
+'
+' @param {String} teamMembers (comma seperated list of team members)
+' @param {String} startDate (String for startDate of workLog in Jira date format)
+' @param {String} teamMembers (String for endDate of workLog in Jira date format) - optional
+' @write {ws_Work}
+' @apicalls 2x{get agile/1.0/board/{id}/sprint/{id}/issues}
+' @apicalls 1x{get search}
+' @apicalls x{get agile/1.0/issue/{id}
+' @return {WebStatusCode} status of last successful apicall
+''
+ 
+'' Known limitations with this macro:
+ 
+Dim JQLdateRange As String
+Dim JQLauthors As String
+Dim JQLothers As String
+
+JQLdateRange = "worklogDate >= " & Left(startDate, 10)
+       
+'If endDate Is Not Null Then
+'    JQLdateRange = JQLrange & " AND worklogDate <= " & endDate
+'End If
+
+JQLauthors = JQLdateRange & " AND worklogAuthor in (" & teamMembers & ")"
+JQLothers = JQLdateRange & " AND worklogAuthor not in (" & teamMembers & ")"
+                
+'Define the new TeamIssuesForSprint Request
+Dim TeamIssuesForSprint_Request As New WebRequest
+With TeamIssuesForSprint_Request
+    .Resource = "agile/1.0/board/{boardId}/sprint/{sprintId}/issue"
+    .Method = WebMethod.HttpGet
+    .AddUrlSegment "boardId", rapidViewId
+    .AddUrlSegment "sprintId", requestedSprintId
+    .AddQuerystringParam "jql", JQLauthors
+    .AddQuerystringParam "fields", "worklog"
+    .AddQuerystringParam "startAt", 0
+    .AddQuerystringParam "maxResults", "1000"
+End With
+
+'Define the new GrowthIssuesForSprint Request
+Dim GrowthIssuesForSprint_Request As New WebRequest
+With GrowthIssuesForSprint_Request
+    .Resource = "agile/1.0/board/{boardId}/sprint/{sprintId}/issue"
+    .Method = WebMethod.HttpGet
+    .AddUrlSegment "boardId", rapidViewId
+    .AddUrlSegment "sprintId", requestedSprintId
+    .AddQuerystringParam "jql", JQLauthors
+    .AddQuerystringParam "fields", "worklog"
+    .AddQuerystringParam "startAt", 0
+    .AddQuerystringParam "maxResults", "1000"
+End With
+           
+'Define the new Search Request
+Dim Search_Request As New WebRequest
+With Search_Request
+    .Resource = "api/2/search"
+    .Method = WebMethod.HttpGet
+    .AddQuerystringParam "jql", JQLauthors
+    .AddQuerystringParam "fields", "key"
+    .AddQuerystringParam "startAt", 0
+    .AddQuerystringParam "maxResults", "1000"
+End With
+           
+Dim Jira_TeamIssuesForSprint_Response As New JiraResponse
+Dim Jira_GrowthIssuesForSprint_Response As New JiraResponse
+Dim Jira_Search_Response As New JiraResponse
+
+Dim TeamIssuesForSprint_Response As New WebResponse
+Dim GrowthIssuesForSprint_Response As New WebResponse
+Dim Search_Response As New WebResponse
+ 
+Set TeamIssuesForSprint_Response = Jira_TeamIssuesForSprint_Response.JiraCall(TeamIssuesForSprint_Request)
+Set GrowthIssuesForSprint_Response = Jira_GrowthIssuesForSprint_Response.JiraCall(GrowthIssuesForSprint_Request)
+Set Search_Response = Jira_Search_Response.JiraCall(Search_Request)
+ 
+If TeamIssuesForSprint_Response.StatusCode = OK Then
+    If GrowthIssuesForSprint_Response.StatusCode = OK Then
+        funcGetSprintWorkLog = Search_Response.StatusCode
+    Else
+        funcGetSprintWorkLog = GrowthIssuesForSprint_Response.StatusCode
+        Debug.Print "Error with Jira_GrowthIssuesForSprint: " & GrowthIssuesForSprint_Response.StatusCode
+        Exit Function
+    End If
+Else
+    funcGetSprintWorkLog = TeamIssuesForSprint_Response.StatusCode
+    Debug.Print "Error with Jira_TeamIssuesForSprint: " & TeamIssuesForSprint_Response.StatusCode
+    Exit Function
+End If
+
+Dim i%, w As Integer
+Dim r As Long
+Dim item As Object
+Dim worklog As Object
+  
+If funcGetSprintWorkLog = OK Then
+    r = 2
+    i = 1 'reset the issue to 1
+    For Each item In TeamIssuesForSprint_Response.Data("issues")
+            w = 1 'reset the worklog to 1
+            With ws_Work
+                .Cells(r, 6).Value = TeamIssuesForSprint_Response.Data("issues")(i)("key")
+                For Each worklog In TeamIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")
+                    .Cells(r, 7).Value = TeamIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("author")("name")
+                    .Cells(r, 8).Value = TeamIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("started")
+                    .Cells(r, 9).Value = TeamIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("timeSpentSeconds")
+                    w = w + 1
+                Next worklog
+            End With
+            r = r + 1 'increment the row
+        i = i + 1 'increment the issue
+    Next item
+    r = 2 'reset row
+    i = 1 'reset the issue to 1
+    For Each item In GrowthIssuesForSprint_Response.Data("issues")
+            w = 1 'reset the worklog to 1
+            With ws_Work
+                .Cells(r, 11).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("key")
+                For Each worklog In GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")
+                    .Cells(r, 12).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("author")("name")
+                    .Cells(r, 13).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("started")
+                    .Cells(r, 14).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("timeSpentSeconds")
+                    w = w + 1
+                Next worklog
+            End With
+            r = r + 1 'increment the row
+        i = i + 1 'increment the issue
+    Next item
+    r = 2 'reset row
+    i = 1 'reset the issue to 1
+    For Each item In Search_Response.Data("issues")
+            w = 1 'reset the worklog to 1
+            With ws_Work
+                .Cells(r, 16).Value = Search_Response.Data("issues")(i)("key")
+                
+                '' need to add new call in here to get the worklog data
+                
+                ''For Each worklog In GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")
+                ''    .Cells(r, 12).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("author")("name")
+                ''    .Cells(r, 13).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("started")
+                ''    .Cells(r, 14).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("timeSpentSeconds")
+                ''    w = w + 1
+               '' Next worklog
+            End With
+            r = r + 1 'increment the row
+        i = i + 1 'increment the issue
+    Next item
+Else
+    Debug.Print "Error with Jira_Search: " & Search_Response.StatusCode
+End If
+ 
+End Function
 Function funcPredictabilitySprintsEstimated()
  
 '' Update the TeamStats worksheet with the *Sprints Estimated* calcualtion
@@ -1490,7 +1677,7 @@ Private Function funcQualityDefectDentisy()
 
 'Count of all issues on the ws_DefectData sheet that have an affects version within the last 12 weeks / the man days over the same period
 
-If ws_DefectsData.Range("A2").Value = 0 Then ' If no DefectsData then exit the function
+If ws_DefectData.Range("A2").Value = 0 Then ' If no DefectsData then exit the function
     Debug.Print "No ws_DefectsData for funcQualityDefectDentisy"
     Exit Function
 End If
@@ -1505,7 +1692,7 @@ Dim TeamId As Long
 
 TeamId = vbaJiraProperties.Range("N1").Value
 
-countOfDefects = Application.WorksheetFunction.CountIf(ws_DefectsData.Range("E:E"), ">=" & Today() - (12 * 7))
+countOfDefects = Application.WorksheetFunction.CountIf(ws_DefectData.Range("E:E"), ">=" & Now() - (12 * 7))
 countOfManDays = Application.WorksheetFunction.SumIf(ws_TeamsData.Range("A:A"), TeamId, ws_TeamsData.Range("E:E")) * 12 / 8
  
 With ws_TeamStats
@@ -1730,7 +1917,7 @@ Private Function ws_TeamsData() As Worksheet
 End Function
 Private Function ws_Work() As Worksheet
     Dim HeadingsArr As Variant
-    HeadingsArr = Array("key", "rapidViewId", "timeSpent")
+    HeadingsArr = Array("burndown:key", "burndown:rapidViewId", "burndown:timeSpent", , , "board&team:key", "board&team:author", "board&team:date", "board&team:timeSpent", , "growth:key", "growth:author", "growth:date", "growth:timeSpent", , "shrinkage:key", "shrinkage:author", "shrinkage:date", "shrinkage:timeSpent")
     Set ws_Work = CreateWorkSheet("ws_Work", HeadingsArr)
 End Function
 Private Function ws_ProjectData() As Worksheet
@@ -1856,5 +2043,14 @@ Private Function issueTypeSearchString() As String
             End If
         Next
     End With
+
+End Function
+Private Function TeamResourcesString() As String
+
+Dim rg As Range
+Set rg = ws_TeamsData.Range("G2").CurrentRegion
+Set rg = rg.Resize(rg.Rows.Count - 1, 1).Offset(1, 6)
+
+TeamResourcesString = Join(WorksheetFunction.Transpose(rg.Value), ",")
 
 End Function
