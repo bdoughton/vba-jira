@@ -997,7 +997,7 @@ With GrowthIssuesForSprint_Request
     .AddQuerystringParam "maxResults", "1000"
 End With
            
-'Define the new Search Request
+'Define the new Search (Shrinkage) Request
 Dim Search_Request As New WebRequest
 With Search_Request
     .Resource = "api/2/search"
@@ -1033,6 +1033,10 @@ Else
     Debug.Print "Error with Jira_TeamIssuesForSprint: " & TeamIssuesForSprint_Response.StatusCode
     Exit Function
 End If
+
+Dim Worklog_Request As New WebRequest
+Dim Jira_Worklog_Response As New JiraResponse
+Dim Worklog_Response As New WebResponse
 
 Dim i%, w As Integer
 Dim r As Long
@@ -1077,16 +1081,28 @@ If funcGetSprintWorkLog = OK Then
     For Each item In Search_Response.Data("issues")
             w = 1 'reset the worklog to 1
             With ws_Work
-                .Cells(r, 16).Value = Search_Response.Data("issues")(i)("key")
+                              
+                'Define the new Worklog (Shrinkage) Request
+                With Worklog_Request
+                    .Resource = "/agile/1.0/issue/{issueIdOrKey}"
+                    .Method = WebMethod.HttpGet
+                    .AddUrlSegment "issueIdOrKey", Search_Response.Data("issues")(i)("key")
+                End With
+              
+                Set Worklog_Response = Jira_Worklog_Response.JiraCall(Worklog_Request)
+                 
+                If Worklog_Response.StatusCode = OK Then
+                    For Each worklog In Worklog_Response.Data("issues")(i)("fields")("worklog")("worklogs")
+                        .Cells(r, 16).Value = Search_Response.Data("issues")(i)("key")
+                        .Cells(r, 17).Value = Worklog_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("author")("name")
+                        .Cells(r, 18).Value = Worklog_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("started")
+                        .Cells(r, 19).Value = Worklog_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("timeSpentSeconds")
+                        w = w + 1
+                    Next worklog
+                End If
                 
-                '' need to add new call in here to get the worklog data
+                Set Worklog_Request = Nothing
                 
-                ''For Each worklog In GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")
-                ''    .Cells(r, 12).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("author")("name")
-                ''    .Cells(r, 13).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("started")
-                ''    .Cells(r, 14).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("timeSpentSeconds")
-                ''    w = w + 1
-               '' Next worklog
             End With
             r = r + 1 'increment the row
         i = i + 1 'increment the issue
@@ -1751,9 +1767,23 @@ Private Function funcScrumTeamStability()
 ' The total volatility would be the sum of the two prior metrics or 46.57% and Team Stability would be 100 - 46.57/2 = 76.715%
 ''
  
+'Deployment Frequency calculated as _
+    = Number of unique releaseDates in the previous month from today
+ 
+Dim Current_Team_Size As Integer
+Dim Old_Team_Size As Integer
+Dim Team_Growth As Long
+Dim Team_Shrinkage As Long
+       
+Current_Team_Size = Application.WorksheetFunction.Sum(ws_Work.Range("G:G")) ' sum of seconds worked
+Old_Team_Size = Application.WorksheetFunction.Sum(ws_TeamsData.Range("G:G")) * 60 * 60 ' sum of hours expected x 60 minutes x 60 seconds
+
+Team_Growth = Application.WorksheetFunction.Sum(ws_Work.Range("N:N")) / Current_Team_Size ' sum of growth seconds / sum of seconds worked
+Team_Shrinkage = Application.WorksheetFunction.Sum(ws_Work.Range("S:S")) / Old_Team_Size ' sum of shrinkage seconds / sum of seconds expected
+ 
 With ws_TeamStats
-    .Range("BB22").Value = 0.88 ' Forumla to be updated
-    .Range("J5").Value = 0.88 ' Forumla to be updated
+    .Range("BB22").Value = 1 - ((Team_Growth + Team_Shrinkage) / 2)
+    .Range("J5").Value = Round(1 - ((Team_Growth + Team_Shrinkage) / 2), 2)
 End With
  
 End Function
