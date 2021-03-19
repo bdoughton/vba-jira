@@ -176,7 +176,6 @@ Sub UpdateIssueTypeMapping(control As IRibbonControl)
         MsgBox ("Error Getting Issue Types from Jira: " & IssueTypeResponse.StatusCode)
     End If
 End Sub
-
 Sub GetTeamStats(control As IRibbonControl)
  
 ''
@@ -198,8 +197,8 @@ Application.Calculation = xlCalculationManual
 ws_TeamStats.Unprotect ("KM_e@UyRnMtTqvWpd3NG")
  
     ' --- Comment out the respective value to enable or suspend logging
-    WebHelpers.EnableLogging = True
-'    WebHelpers.EnableLogging = False
+'    WebHelpers.EnableLogging = True
+    WebHelpers.EnableLogging = False
    
     'Check if a user is logged in and if not perform login, if login fails exit
     If Not IsLoggedIn Then
@@ -218,45 +217,63 @@ ws_TeamStats.Unprotect ("KM_e@UyRnMtTqvWpd3NG")
         
     ''Fetch Data from Api Calls
     Dim callResult(1 To 9) As WebStatusCode
+        Debug.Print (Now())
     callResult(1) = funcGet3MonthsOfDoneJiras(boardJql, "In Progress", "Done", 0, 2)
+        Debug.Print ("funcGet3MonthsOfDoneJiras: " & callResult(1) & " : " & Now())
     callResult(2) = funcGetIncompleteJiras(boardJql, 0, 2)
+        Debug.Print ("funcGetIncompleteJiras: " & callResult(2) & " : " & Now())
     callResult(3) = funcGet12MonthDoneJiras(boardJql, 0, 2)
+        Debug.Print ("funcGet12MonthDoneJiras: " & callResult(3) & " : " & Now())
     callResult(4) = funcGetDefects(boardJql, 0, 2)
+        Debug.Print ("funcGetDefects: " & callResult(4) & " : " & Now())
     callResult(5) = funcGetVelocity(rapidViewId)
+        Debug.Print ("funcGetVelocity: " & callResult(5) & " : " & Now())
     callResult(6) = funcPostTeamsFind()
+        Debug.Print ("funcPostTeamsFind: " & callResult(6) & " : " & Now())
     callResult(7) = funcGetSprintBurnDown(rapidViewId, CStr(ws_VelocityData.Range("A2").Value))
+        Debug.Print ("funcGetSprintBurnDown: " & callResult(7) & " : " & Now())
     callResult(8) = funcGetSprintDetails(CStr(ws_VelocityData.Range("A2").Value))
+        Debug.Print ("funcGetSprintDetails: " & callResult(8) & " : " & Now())
     callResult(9) = funcGetSprintWorkLog(TeamResourcesString, CStr(ws_VelocityData.Range("F2").Value), CStr(ws_VelocityData.Range("A2").Value))
-    
+        Debug.Print ("funcGetSprintWorkLog: " & callResult(9) & " : " & Now())
     ' Input the most recent sprint name
     ws_TeamStats.Range("AS3").Value = ws_VelocityData.Range("B2").Value
-    
-    Dim item As Variant
-    For Each item In callResult
-        If item <> 200 Then
-            MsgBox ("Error")
-            Exit Sub
-        End If
-    Next item
- 
+        Debug.Print (Now())
     'Run the calculations - note the order is specfic
     funcPredictabilitySprintsEstimated
+        Debug.Print ("funcPredictabilitySprintsEstimated: " & Now())
     funcPredictabilityVelocity
+        Debug.Print ("funcPredictabilityVelocity: " & Now())
     funcPredictabilitySprintOutputVariability
+        Debug.Print ("funcPredictabilitySprintOutputVariability: " & Now())
     funcResponsivenessLeadTime
+        Debug.Print ("funcResponsivenessLeadTime: " & Now())
     funcResponsivenessDeploymentFrequency
+        Debug.Print ("funcResponsivenessDeploymentFrequency: " & Now())
     funcResponsivenessTiP
+        Debug.Print ("funcResponsivenessTiP: " & Now())
     funcPredictabilityTiPVariability
+        Debug.Print ("funcPredictabilityTiPVariability: " & Now())
     funcScrumUnplannedWork
+        Debug.Print ("funcScrumUnplannedWork: " & Now())
     funcResponsivenessWiP
+        Debug.Print ("funcResponsivenessWiP: " & Now())
     funcProductivityReleaseVelocity
+        Debug.Print ("funcProductivityReleaseVelocity: " & Now())
     funcProductivityEfficiency
+        Debug.Print ("funcProductivityEfficiency: " & Now())
     funcProductivityDistribution
+        Debug.Print ("funcProductivityDistribution: " & Now())
     funcQualityTimeToResolve
+        Debug.Print ("funcQualityTimeToResolve: " & Now())
     funcQualityDefectDentisy
+        Debug.Print ("funcQualityDefectDentisy: " & Now())
     funcQualityFailRate
+        Debug.Print ("funcQualityFailRate: " & Now())
     funcScrumTeamStability
+        Debug.Print ("funcScrumTeamStability: " & Now())
     funcJiraAdminActiveTime
+        Debug.Print ("funcJiraAdminActiveTime: " & Now())
 
 ws_TeamStats.Activate
     
@@ -930,6 +947,8 @@ Dim Sprint_Response As New WebResponse
  
 Set Sprint_Response = Jira_Sprint_Response.JiraCall(Sprint_Request)
  
+funcGetSprintDetails = Sprint_Response.StatusCode
+ 
 If Sprint_Response.StatusCode = OK Then
     With ws_VelocityData
         .Cells(1, 6).Value = "Start"
@@ -937,6 +956,8 @@ If Sprint_Response.StatusCode = OK Then
         .Cells(2, 6).Value = Sprint_Response.Data("startDate")
         .Cells(2, 7).Value = Sprint_Response.Data("endDate")
     End With
+    
+
 End If
 
 End Function
@@ -961,6 +982,7 @@ Private Function funcGetSprintWorkLog(ByVal teamMembers As String, ByVal startDa
 Dim JQLdateRange As String
 Dim JQLauthors As String
 Dim JQLothers As String
+Dim JQLshrink As String
 
 JQLdateRange = "worklogDate >= " & Left(startDate, 10)
        
@@ -970,6 +992,7 @@ JQLdateRange = "worklogDate >= " & Left(startDate, 10)
 
 JQLauthors = JQLdateRange & " AND worklogAuthor in (" & teamMembers & ")"
 JQLothers = JQLdateRange & " AND worklogAuthor not in (" & teamMembers & ")"
+JQLshrink = JQLdateRange & " AND worklogAuthor in (" & teamMembers & ") AND Sprint not in (" & requestedSprintId & ")"
                 
 'Define the new TeamIssuesForSprint Request
 Dim TeamIssuesForSprint_Request As New WebRequest
@@ -991,7 +1014,7 @@ With GrowthIssuesForSprint_Request
     .Method = WebMethod.HttpGet
     .AddUrlSegment "boardId", rapidViewId
     .AddUrlSegment "sprintId", requestedSprintId
-    .AddQuerystringParam "jql", JQLauthors
+    .AddQuerystringParam "jql", JQLothers
     .AddQuerystringParam "fields", "worklog"
     .AddQuerystringParam "startAt", 0
     .AddQuerystringParam "maxResults", "1000"
@@ -1002,7 +1025,7 @@ Dim Search_Request As New WebRequest
 With Search_Request
     .Resource = "api/2/search"
     .Method = WebMethod.HttpGet
-    .AddQuerystringParam "jql", JQLauthors
+    .AddQuerystringParam "jql", JQLshrink
     .AddQuerystringParam "fields", "key"
     .AddQuerystringParam "startAt", 0
     .AddQuerystringParam "maxResults", "1000"
@@ -1050,12 +1073,20 @@ If funcGetSprintWorkLog = OK Then
             w = 1 'reset the worklog to 1
             With ws_Work
                 .Cells(r, 6).Value = TeamIssuesForSprint_Response.Data("issues")(i)("key")
-                For Each worklog In TeamIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")
-                    .Cells(r, 7).Value = TeamIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("author")("name")
-                    .Cells(r, 8).Value = TeamIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("started")
-                    .Cells(r, 9).Value = TeamIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("timeSpentSeconds")
-                    w = w + 1
-                Next worklog
+                    If 1 = 1 Then
+                    If TeamIssuesForSprint_Response.Data("issues")(i).Exists("fields") Then
+                        If TeamIssuesForSprint_Response.Data("issues")(i)("fields").Exists("worklog") Then
+                            If TeamIssuesForSprint_Response.Data("issues")(i)("fields")("worklog").Exists("worklogs") Then
+                                For Each worklog In TeamIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")
+                                    .Cells(r, 7).Value = TeamIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("author")("name")
+                                    .Cells(r, 8).Value = TeamIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("started")
+                                    .Cells(r, 9).Value = TeamIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("timeSpentSeconds")
+                                    w = w + 1
+                                Next worklog
+                            End If
+                        End If
+                    End If
+                End If
             End With
             r = r + 1 'increment the row
         i = i + 1 'increment the issue
@@ -1066,12 +1097,18 @@ If funcGetSprintWorkLog = OK Then
             w = 1 'reset the worklog to 1
             With ws_Work
                 .Cells(r, 11).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("key")
-                For Each worklog In GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")
-                    .Cells(r, 12).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("author")("name")
-                    .Cells(r, 13).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("started")
-                    .Cells(r, 14).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("timeSpentSeconds")
-                    w = w + 1
-                Next worklog
+                If GrowthIssuesForSprint_Response.Data("issues")(i).Exists("fields") Then
+                    If GrowthIssuesForSprint_Response.Data("issues")(i)("fields").Exists("worklog") Then
+                        If GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog").Exists("worklogs") Then
+                            For Each worklog In GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")
+                                .Cells(r, 12).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("author")("name")
+                                .Cells(r, 13).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("started")
+                                .Cells(r, 14).Value = GrowthIssuesForSprint_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("timeSpentSeconds")
+                                w = w + 1
+                            Next worklog
+                        End If
+                    End If
+                End If
             End With
             r = r + 1 'increment the row
         i = i + 1 'increment the issue
@@ -1087,18 +1124,25 @@ If funcGetSprintWorkLog = OK Then
                     .Resource = "/agile/1.0/issue/{issueIdOrKey}"
                     .Method = WebMethod.HttpGet
                     .AddUrlSegment "issueIdOrKey", Search_Response.Data("issues")(i)("key")
+                    .AddQuerystringParam "fields", "worklog"
                 End With
               
                 Set Worklog_Response = Jira_Worklog_Response.JiraCall(Worklog_Request)
                  
                 If Worklog_Response.StatusCode = OK Then
-                    For Each worklog In Worklog_Response.Data("issues")(i)("fields")("worklog")("worklogs")
-                        .Cells(r, 16).Value = Search_Response.Data("issues")(i)("key")
-                        .Cells(r, 17).Value = Worklog_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("author")("name")
-                        .Cells(r, 18).Value = Worklog_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("started")
-                        .Cells(r, 19).Value = Worklog_Response.Data("issues")(i)("fields")("worklog")("worklogs")(w)("timeSpentSeconds")
-                        w = w + 1
-                    Next worklog
+                    If Worklog_Response.Data.Exists("fields") Then
+                        If Worklog_Response.Data("fields").Exists("worklog") Then
+                            If Worklog_Response.Data("fields")("worklog").Exists("worklogs") Then
+                                For Each worklog In Worklog_Response.Data("fields")("worklog")("worklogs")
+                                    .Cells(r, 16).Value = Search_Response.Data("issues")(i)("key")
+                                    .Cells(r, 17).Value = Worklog_Response.Data("fields")("worklog")("worklogs")(w)("author")("name")
+                                    .Cells(r, 18).Value = Worklog_Response.Data("fields")("worklog")("worklogs")(w)("started")
+                                    .Cells(r, 19).Value = Worklog_Response.Data("fields")("worklog")("worklogs")(w)("timeSpentSeconds")
+                                    w = w + 1
+                                Next worklog
+                            End If
+                        End If
+                    End If
                 End If
                 
                 Set Worklog_Request = Nothing
@@ -1770,13 +1814,13 @@ Private Function funcScrumTeamStability()
 'Deployment Frequency calculated as _
     = Number of unique releaseDates in the previous month from today
  
-Dim Current_Team_Size As Integer
-Dim Old_Team_Size As Integer
+Dim Current_Team_Size As Long
+Dim Old_Team_Size As Long
 Dim Team_Growth As Long
 Dim Team_Shrinkage As Long
        
-Current_Team_Size = Application.WorksheetFunction.Sum(ws_Work.Range("G:G")) ' sum of seconds worked
-Old_Team_Size = Application.WorksheetFunction.Sum(ws_TeamsData.Range("G:G")) * 60 * 60 ' sum of hours expected x 60 minutes x 60 seconds
+Current_Team_Size = Application.WorksheetFunction.Sum(ws_Work.Range("I:I")) ' sum of seconds worked
+Old_Team_Size = Application.WorksheetFunction.Sum(ws_TeamsData.Range("E:E")) * 60 * 60 ' sum of hours expected x 60 minutes x 60 seconds
 
 Team_Growth = Application.WorksheetFunction.Sum(ws_Work.Range("N:N")) / Current_Team_Size ' sum of growth seconds / sum of seconds worked
 Team_Shrinkage = Application.WorksheetFunction.Sum(ws_Work.Range("S:S")) / Old_Team_Size ' sum of shrinkage seconds / sum of seconds expected
@@ -2084,3 +2128,4 @@ Set rg = rg.Resize(rg.Rows.Count - 1, 1).Offset(1, 6)
 TeamResourcesString = Join(WorksheetFunction.Transpose(rg.Value), ",")
 
 End Function
+
