@@ -29,12 +29,22 @@ Public DaysInSprint As Long
 Public LastSprintName As String
 Public LastSprintId As Integer
 
+Sub Test()
+
+    Dim callResult As WebStatusCode
+
+        Debug.Print (Now())
+    callResult = funcGet12MonthDoneJiras(boardJql, 0, 1)
+        Debug.Print ("funcGet12MonthDoneJiras: " & callResult & " : " & Now())
+
+End Sub
+
 Sub UpdateIssueTypeMapping(control As IRibbonControl)
 
     '' Need to use this data in other macros
     '' needs refactoring to remove duplication of code into sub functions
     
-    Dim arr() As String
+    Dim Arr() As String
     Dim i As Integer
     Dim strFeatures$, strDefects$, strRisks$, strDebts As String
      
@@ -79,14 +89,14 @@ Sub UpdateIssueTypeMapping(control As IRibbonControl)
         vbaJiraProperties.Range("J1:K1").Value = Array("Features:", _
             InputBox("Name of Jira IssueType(s) that maps to Features? Seperate multiple Issue Types with a comma (,)", _
             "Features", strFeatures))
-        arr = Split(vbaJiraProperties.Range("K1"), ",")
-        For i = LBound(arr) To UBound(arr)
-            ReDim foundIssue(0 To UBound(arr)) As Boolean
+        Arr = Split(vbaJiraProperties.Range("K1"), ",")
+        For i = LBound(Arr) To UBound(Arr)
+            ReDim foundIssue(0 To UBound(Arr)) As Boolean
             foundIssue(i) = False
             For JiraIssueTypeIndex = 1 To IssueTypeResponse.Data.Count
-                    If IssueTypeResponse.Data(JiraIssueTypeIndex)("name") = arr(i) Then
+                    If IssueTypeResponse.Data(JiraIssueTypeIndex)("name") = Arr(i) Then
                         If IssueTypeResponse.Data(JiraIssueTypeIndex)("subtask") = True Then
-                            MsgBox ("The following Issue Type is a Sub-Task, please try again: " & arr(i))
+                            MsgBox ("The following Issue Type is a Sub-Task, please try again: " & Arr(i))
                             Exit Sub
                         Else
                             foundIssue(i) = True
@@ -95,7 +105,7 @@ Sub UpdateIssueTypeMapping(control As IRibbonControl)
                     End If
             Next JiraIssueTypeIndex
             If Not foundIssue(i) Then ' If the issue type could not be found in Jira
-                MsgBox ("The following Issue Type could not be found in Jira, please try again: " & arr(i))
+                MsgBox ("The following Issue Type could not be found in Jira, please try again: " & Arr(i))
                 Exit Sub
             End If
         Next i
@@ -103,14 +113,14 @@ Sub UpdateIssueTypeMapping(control As IRibbonControl)
         vbaJiraProperties.Range("J2:K2").Value = Array("Defects:", _
             InputBox("Name of Jira IssueType(s) that maps to Defects? Seperate multiple Issue Types with a comma (,)", _
             "Defects", strDefects))
-        arr = Split(vbaJiraProperties.Range("K2"), ",")
-        For i = LBound(arr) To UBound(arr)
-            ReDim foundIssue(0 To UBound(arr)) As Boolean
+        Arr = Split(vbaJiraProperties.Range("K2"), ",")
+        For i = LBound(Arr) To UBound(Arr)
+            ReDim foundIssue(0 To UBound(Arr)) As Boolean
             foundIssue(i) = False
             For JiraIssueTypeIndex = 1 To IssueTypeResponse.Data.Count
-                    If IssueTypeResponse.Data(JiraIssueTypeIndex)("name") = arr(i) Then
+                    If IssueTypeResponse.Data(JiraIssueTypeIndex)("name") = Arr(i) Then
                         If IssueTypeResponse.Data(JiraIssueTypeIndex)("subtask") = True Then
-                            MsgBox ("The following Issue Type is a Sub-Task, please try again: " & arr(i))
+                            MsgBox ("The following Issue Type is a Sub-Task, please try again: " & Arr(i))
                             Exit Sub
                         Else
                             foundIssue(i) = True
@@ -119,7 +129,7 @@ Sub UpdateIssueTypeMapping(control As IRibbonControl)
                     End If
             Next JiraIssueTypeIndex
             If Not foundIssue(i) Then ' If the issue type could not be found in Jira
-                MsgBox ("The following Issue Type could not be found in Jira, please try again: " & arr(i))
+                MsgBox ("The following Issue Type could not be found in Jira, please try again: " & Arr(i))
                 Exit Sub
             End If
         Next i
@@ -127,14 +137,14 @@ Sub UpdateIssueTypeMapping(control As IRibbonControl)
         vbaJiraProperties.Range("J3:K3").Value = Array("Risks:", _
             InputBox("Name of Jira IssueType(s) that maps to Risks? Seperate multiple Issue Types with a comma (,)", _
             "Risks", strRisks))
-        arr = Split(vbaJiraProperties.Range("K3"), ",")
-        For i = LBound(arr) To UBound(arr)
-            ReDim foundIssue(0 To UBound(arr)) As Boolean
+        Arr = Split(vbaJiraProperties.Range("K3"), ",")
+        For i = LBound(Arr) To UBound(Arr)
+            ReDim foundIssue(0 To UBound(Arr)) As Boolean
             foundIssue(i) = False
             For JiraIssueTypeIndex = 1 To IssueTypeResponse.Data.Count
-                    If IssueTypeResponse.Data(JiraIssueTypeIndex)("name") = arr(i) Then
+                    If IssueTypeResponse.Data(JiraIssueTypeIndex)("name") = Arr(i) Then
                         If IssueTypeResponse.Data(JiraIssueTypeIndex)("subtask") = True Then
-                            MsgBox ("The following Issue Type is a Sub-Task, please try again: " & arr(i))
+                            MsgBox ("The following Issue Type is a Sub-Task, please try again: " & Arr(i))
                             Exit Sub
                         Else
                             foundIssue(i) = True
@@ -143,7 +153,7 @@ Sub UpdateIssueTypeMapping(control As IRibbonControl)
                     End If
             Next JiraIssueTypeIndex
             If Not foundIssue(i) Then ' If the issue type could not be found in Jira
-                MsgBox ("The following Issue Type could not be found in Jira, please try again: " & arr(i))
+                MsgBox ("The following Issue Type could not be found in Jira, please try again: " & Arr(i))
                 Exit Sub
             End If
         Next i
@@ -151,14 +161,14 @@ Sub UpdateIssueTypeMapping(control As IRibbonControl)
         vbaJiraProperties.Range("J4:K4").Value = Array("Debts:", _
             InputBox("Name of Jira IssueType(s) that maps to Debts? Seperate multiple Issue Types with a comma (,)", _
             "Debts", strDebts))
-        arr = Split(vbaJiraProperties.Range("K4"), ",")
-        For i = LBound(arr) To UBound(arr)
-            ReDim foundIssue(0 To UBound(arr)) As Boolean
+        Arr = Split(vbaJiraProperties.Range("K4"), ",")
+        For i = LBound(Arr) To UBound(Arr)
+            ReDim foundIssue(0 To UBound(Arr)) As Boolean
             foundIssue(i) = False
             For JiraIssueTypeIndex = 1 To IssueTypeResponse.Data.Count
-                    If IssueTypeResponse.Data(JiraIssueTypeIndex)("name") = arr(i) Then
+                    If IssueTypeResponse.Data(JiraIssueTypeIndex)("name") = Arr(i) Then
                         If IssueTypeResponse.Data(JiraIssueTypeIndex)("subtask") = True Then
-                            MsgBox ("The following Issue Type is a Sub-Task, please try again: " & arr(i))
+                            MsgBox ("The following Issue Type is a Sub-Task, please try again: " & Arr(i))
                             Exit Sub
                         Else
                             foundIssue(i) = True
@@ -167,7 +177,7 @@ Sub UpdateIssueTypeMapping(control As IRibbonControl)
                     End If
             Next JiraIssueTypeIndex
             If Not foundIssue(i) Then ' If the issue type could not be found in Jira
-                MsgBox ("The following Issue Type could not be found in Jira, please try again: " & arr(i))
+                MsgBox ("The following Issue Type could not be found in Jira, please try again: " & Arr(i))
                 Exit Sub
             End If
         Next i
@@ -220,9 +230,9 @@ ws_TeamStats.Unprotect ("KM_e@UyRnMtTqvWpd3NG")
         Debug.Print (Now())
     callResult(1) = funcGet3MonthsOfDoneJiras(boardJql, "In Progress", "Done", 0, 2)
         Debug.Print ("funcGet3MonthsOfDoneJiras: " & callResult(1) & " : " & Now())
-    callResult(2) = funcGetIncompleteJiras(boardJql, 0, 2)
+    callResult(2) = funcGetIncompleteJiras(boardJql, 0, 1)
         Debug.Print ("funcGetIncompleteJiras: " & callResult(2) & " : " & Now())
-    callResult(3) = funcGet12MonthDoneJiras(boardJql, 0, 2)
+    callResult(3) = funcGet12MonthDoneJiras(boardJql, 0, 1)
         Debug.Print ("funcGet12MonthDoneJiras: " & callResult(3) & " : " & Now())
     callResult(4) = funcGetDefects(boardJql, 0, 2)
         Debug.Print ("funcGetDefects: " & callResult(4) & " : " & Now())
@@ -561,32 +571,40 @@ funcGetIncompleteJiras = JQL_Search_Response.StatusCode
  
 Dim i%, s As Integer
 Dim item As Object
- 
+
 If funcGetIncompleteJiras = OK Then
     clearOldData ws_IncompleteIssuesData
     startAtVal = startAtVal + 1000 'Increment the next start position based on maxResults above
+    
+    '' Create a 2 dimensional array to hold values for when the issue was actively in progress
+    Dim Arr As Variant
+    ReDim Arr(1 To JQL_Search_Response.Data("issues").Count, 1 To 10) As Variant
     i = 1 'reset the issue to 1
     For Each item In JQL_Search_Response.Data("issues")
-        With ws_IncompleteIssuesData
-           .Cells(r, 1).Value = JQL_Search_Response.Data("issues")(i)("id")
-            .Cells(r, 2).Value = JQL_Search_Response.Data("issues")(i)("key")
-            .Cells(r, 3).Value = JQL_Search_Response.Data("issues")(i)("fields")("issuetype")("name")
-            .Cells(r, 4).Value = JQL_Search_Response.Data("issues")(i)("fields")("project")("key")
-            .Cells(r, 5).Value = JQL_Search_Response.Data("issues")(i)("fields")(epiclink)
-            .Cells(r, 6).Value = JQL_Search_Response.Data("issues")(i)("fields")(storypoints)
-            .Cells(r, 7).Value = JQL_Search_Response.Data("issues")(i)("fields")("status")("name")
-            .Cells(r, 8).Value = JQL_Search_Response.Data("issues")(i)("fields")("status")("statusCategory")("name")
-            .Cells(r, 9).Value = JQL_Search_Response.Data("issues")(i)("fields")("aggregatetimeestimate")
-            If VarType(JQL_Search_Response.Data("issues")(i)("fields")(sprints)) = vbObject Then
-                s = JQL_Search_Response.Data("issues")(i)("fields")(sprints).Count
-                .Cells(r, 10).Value = sprint_ParseString(JQL_Search_Response.Data("issues")(i)("fields")(sprints)(s), "state") 'Find the last sprint's state
-            Else
-                .Cells(r, 10).Value = "BACKLOG"
-            End If
-        End With
+        Arr(r, 1) = JQL_Search_Response.Data("issues")(i)("id")
+        Arr(r, 2) = JQL_Search_Response.Data("issues")(i)("key")
+        Arr(r, 3) = JQL_Search_Response.Data("issues")(i)("fields")("issuetype")("name")
+        Arr(r, 4) = JQL_Search_Response.Data("issues")(i)("fields")("project")("key")
+        Arr(r, 5) = JQL_Search_Response.Data("issues")(i)("fields")(epiclink)
+        Arr(r, 6) = JQL_Search_Response.Data("issues")(i)("fields")(storypoints)
+        Arr(r, 7) = JQL_Search_Response.Data("issues")(i)("fields")("status")("name")
+        Arr(r, 8) = JQL_Search_Response.Data("issues")(i)("fields")("status")("statusCategory")("name")
+        Arr(r, 9) = JQL_Search_Response.Data("issues")(i)("fields")("aggregatetimeestimate")
+        If VarType(JQL_Search_Response.Data("issues")(i)("fields")(sprints)) = vbObject Then
+            s = JQL_Search_Response.Data("issues")(i)("fields")(sprints).Count
+            Arr(r, 10) = sprint_ParseString(JQL_Search_Response.Data("issues")(i)("fields")(sprints)(s), "state") 'Find the last sprint's state
+        Else
+            Arr(r, 10) = "BACKLOG"
+        End If
         i = i + 1 'increment the issue
         r = r + 1 'increment the row
     Next item
+   
+    '' Write the results of the 2 dimensional array to the sheet
+    Dim IncompleteIssuesRange As Range
+    Set IncompleteIssuesRange = ws_IncompleteIssuesData.Range("A2").Resize(JQL_Search_Response.Data("issues").Count, 10)
+    IncompleteIssuesRange.Value = Arr
+
 End If
  
 End Function
@@ -638,31 +656,37 @@ Set JQL_Search_Response = JQL_PBI_Search_Response.JiraCall(JQL_PBI_Request)
  
 funcGet12MonthDoneJiras = JQL_Search_Response.StatusCode
  
-Dim i%, s As Integer
-Dim item As Object
- 
 If funcGet12MonthDoneJiras = OK Then
     clearOldData ws_DoneData
     startAtVal = startAtVal + 1000 'Increment the next start position based on maxResults above
-    i = 1 'reset the issue to 1
-    For Each item In JQL_Search_Response.Data("issues")
-        If CDate(JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate")) >= DateAdd("m", -12, "01/" & Month(Now()) & "/" & Year(Now())) Then 'Only include if the release date was in the last 12 months
-            With ws_DoneData
-                .Cells(r, 1).Value = JQL_Search_Response.Data("issues")(i)("id")
-                .Cells(r, 2).Value = JQL_Search_Response.Data("issues")(i)("key")
-                .Cells(r, 3).Value = JQL_Search_Response.Data("issues")(i)("fields")("issuetype")("name")
-                If JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate") > JQL_Search_Response.Data("issues")(i)("fields")("created") Then
-                    .Cells(r, 4).Value = JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate") 'Always use the 1st fixVersion, even if there are multiple
-                Else
-                    .Cells(r, 4).Value = Left(JQL_Search_Response.Data("issues")(i)("fields")("resolutiondate"), 10) 'use the resolution date if there is no fixVersion.
-                End If
-            End With
-            r = r + 1 'increment the row
-        End If
-        i = i + 1 'increment the issue
-    Next item
+    If JQL_Search_Response.Data("total") > 0 Then
+        Dim i%, s As Integer
+        Dim item As Object
+        Dim Arr As Variant
+        ReDim Arr(1 To JQL_Search_Response.Data("issues").Count, 1 To 4) As Variant
+        i = 1 'reset the issue to 1
+        For Each item In JQL_Search_Response.Data("issues")
+            If CDate(JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate")) >= DateAdd("m", -12, "01/" & Month(Now()) & "/" & Year(Now())) Then 'Only include if the release date was in the last 12 months
+                    Arr(r, 1) = JQL_Search_Response.Data("issues")(i)("id")
+                    Arr(r, 2) = JQL_Search_Response.Data("issues")(i)("key")
+                    Arr(r, 3) = JQL_Search_Response.Data("issues")(i)("fields")("issuetype")("name")
+                    If JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate") > JQL_Search_Response.Data("issues")(i)("fields")("created") Then
+                        Arr(r, 4) = JQL_Search_Response.Data("issues")(i)("fields")("fixVersions")(1)("releaseDate") 'Always use the 1st fixVersion, even if there are multiple
+                    Else
+                        Arr(r, 4) = Left(JQL_Search_Response.Data("issues")(i)("fields")("resolutiondate"), 10) 'use the resolution date if there is no fixVersion.
+                    End If
+                r = r + 1 'increment the row
+            End If
+            i = i + 1 'increment the issue
+        Next item
+            
+        '' Write the results of the 2 dimensional array to the sheet
+        Dim DoneIssuesRange As Range
+        Set DoneIssuesRange = ws_DoneData.Range("A2").Resize(JQL_Search_Response.Data("issues").Count, 4)
+        DoneIssuesRange.Value = Arr
+    End If
 End If
- 
+                           
 End Function
 Private Function funcGetDefects(ByVal boardJql As String, ByRef startAtVal, r As Integer) As WebStatusCode
  
@@ -716,20 +740,28 @@ Dim item As Object
 If funcGetDefects = OK Then
     clearOldData ws_DefectData
     startAtVal = startAtVal + 1000 'Increment the next start position based on maxResults above
-    i = 1 'reset the issue to 1
-    For Each item In JQL_Search_Response.Data("issues")
-            With ws_DefectData
-                .Cells(r, 1).Value = JQL_Search_Response.Data("issues")(i)("id")
-                .Cells(r, 2).Value = JQL_Search_Response.Data("issues")(i)("key")
-                .Cells(r, 3).Value = JQL_Search_Response.Data("issues")(i)("fields")("issuetype")("name")
-                If JQL_Search_Response.Data("issues")(i)("fields").Exists("versions") Then
-                    .Cells(r, 4).Value = JQL_Search_Response.Data("issues")(i)("fields")("versions")(1)("name") 'Always use the 1st Affects Version, even if there are multiple
-                    .Cells(r, 5).Value = JQL_Search_Response.Data("issues")(i)("fields")("versions")(1)("releaseDate") 'Always use the 1st Affects Version, even if there are multiple
-                End If
-            End With
-            r = r + 1 'increment the row
-        i = i + 1 'increment the issue
-    Next item
+    If JQL_Search_Response.Data("total") > 0 Then
+        Dim Arr As Variant
+        ReDim Arr(1 To JQL_Search_Response.Data("issues").Count, 1 To 5) As Variant
+        i = 1 'reset the issue to 1
+        For Each item In JQL_Search_Response.Data("issues")
+                With ws_DefectData
+                    Arr(r, 1) = JQL_Search_Response.Data("issues")(i)("id")
+                    Arr(r, 2) = JQL_Search_Response.Data("issues")(i)("key")
+                    Arr(r, 3) = JQL_Search_Response.Data("issues")(i)("fields")("issuetype")("name")
+                    If JQL_Search_Response.Data("issues")(i)("fields").Exists("versions") Then
+                        Arr(r, 4) = JQL_Search_Response.Data("issues")(i)("fields")("versions")(1)("name") 'Always use the 1st Affects Version, even if there are multiple
+                        Arr(r, 5) = JQL_Search_Response.Data("issues")(i)("fields")("versions")(1)("releaseDate") 'Always use the 1st Affects Version, even if there are multiple
+                    End If
+                End With
+                r = r + 1 'increment the row
+            i = i + 1 'increment the issue
+        Next item
+        '' Write the results of the 2 dimensional array to the sheet
+        Dim DefectsRange As Range
+        Set DefectsRange = ws_DefectData.Range("A2").Resize(JQL_Search_Response.Data("issues").Count, 5)
+        DefectsRange.Value = Arr
+    End If
 End If
  
 End Function
@@ -763,20 +795,24 @@ Dim item As Object
 Dim r%, s As Integer
  
 If funcGetVelocity = OK Then
-    r = 2
+    Dim Arr(1 To 7, 1 To 5) As Variant
+    r = 1
     s = 1
     clearOldData ws_VelocityData
     For Each item In VelocityResponse.Data("sprints")
         With ws_VelocityData
-            .Cells(r, 1).Value = VelocityResponse.Data("sprints")(s)("id") ' SprintId
-            .Cells(r, 2).Value = VelocityResponse.Data("sprints")(s)("name") 'SprintName
-            .Cells(r, 3).Value = VelocityResponse.Data("sprints")(s)("state") 'SprintState
-            .Cells(r, 4).Value = VelocityResponse.Data("velocityStatEntries")(CStr(.Cells(r, 1).Value))("estimated")("value") 'Commitment
-            .Cells(r, 5).Value = VelocityResponse.Data("velocityStatEntries")(CStr(.Cells(r, 1).Value))("completed")("value") 'Completed
+            Arr(r, 1) = VelocityResponse.Data("sprints")(s)("id") ' SprintId
+            Arr(r, 2) = VelocityResponse.Data("sprints")(s)("name") 'SprintName
+            Arr(r, 3) = VelocityResponse.Data("sprints")(s)("state") 'SprintState
+            Arr(r, 4) = VelocityResponse.Data("velocityStatEntries")(CStr(.Cells(r, 1).Value))("estimated")("value") 'Commitment
+            Arr(r, 5) = VelocityResponse.Data("velocityStatEntries")(CStr(.Cells(r, 1).Value))("completed")("value") 'Completed
         End With
         r = r + 1
         s = s + 1
     Next
+    Dim VelocityRange As Range
+    Set VelocityRange = ws_VelocityData.Range("A2").Resize(7, 5)
+    VelocityRange.Value = Arr
 End If
  
 End Function
@@ -818,40 +854,42 @@ Dim t%, p%, r%, l As Integer
  
 If funcPostTeamsFind = OK Then
     t = 1 'reset the teams to 1
-    r = 2
+    r = 1
     clearOldData ws_TeamsData
-    With ws_TeamsData
-        .Activate
-        For Each jiraTeam In PostTeamsResponse.Data("teams")
-            p = 1
-            If PostTeamsResponse.Data("teams")(t)("id") = CStr(TeamId) Then ' Only import the Team that matches the one in the properties
-                For Each jiraResource In PostTeamsResponse.Data("teams")(t)("resources")
-                    .Cells(r, 1).Value = PostTeamsResponse.Data("teams")(t)("id")
-                    .Cells(r, 2).Value = PostTeamsResponse.Data("teams")(t)("title")
-                    .Cells(r, 3).Value = PostTeamsResponse.Data("teams")(t)("resources")(p)("id")
-                    .Cells(r, 4).Value = PostTeamsResponse.Data("teams")(t)("resources")(p)("personId")
-                    If PostTeamsResponse.Data("teams")(t)("resources")(p).Exists("weeklyHours") Then
-                        .Cells(r, 5).Value = PostTeamsResponse.Data("teams")(t)("resources")(p)("weeklyHours")
-                    Else
-                        .Cells(r, 5).Value = 40
-                    End If
-                    p = p + 1
-                    r = r + 1
-                Next jiraResource
-            End If
-            t = t + 1
-        Next jiraTeam
-        r = 2
+    Dim Arr As Variant
+    For Each jiraTeam In PostTeamsResponse.Data("teams")
         p = 1
-        For Each jiraPerson In PostTeamsResponse.Data("persons")
-            If PostTeamsResponse.Data("persons")(p)("personId") = CStr(.Cells(r, 4).Value) Then
-                .Cells(r, 6).Value = PostTeamsResponse.Data("persons")(p)("personId")
-                .Cells(r, 7).Value = PostTeamsResponse.Data("persons")(p)("jiraUser")("jiraUsername")
+        If PostTeamsResponse.Data("teams")(t)("id") = CStr(TeamId) Then ' Only import the Team that matches the one in the properties
+            ReDim Preserve Arr(1 To 7, 1 To r) As Variant 'resize upper bound of array - note this will need to be transposed
+            For Each jiraResource In PostTeamsResponse.Data("teams")(t)("resources")
+                Arr(1, r) = PostTeamsResponse.Data("teams")(t)("id")
+                Arr(2, r) = PostTeamsResponse.Data("teams")(t)("title")
+                Arr(3, r) = PostTeamsResponse.Data("teams")(t)("resources")(p)("id")
+                Arr(4, r) = PostTeamsResponse.Data("teams")(t)("resources")(p)("personId")
+                If PostTeamsResponse.Data("teams")(t)("resources")(p).Exists("weeklyHours") Then
+                    Arr(5, r) = PostTeamsResponse.Data("teams")(t)("resources")(p)("weeklyHours")
+                Else
+                    Arr(5, r) = 40
+                End If
+                p = p + 1
                 r = r + 1
-            End If
-            p = p + 1
-        Next jiraPerson
-    End With
+            Next jiraResource
+        End If
+        t = t + 1
+    Next jiraTeam
+    r = 1
+    p = 1
+    For Each jiraPerson In PostTeamsResponse.Data("persons")
+        If PostTeamsResponse.Data("persons")(p)("personId") = CStr(Arr(4, r)) Then
+            Arr(6, r) = PostTeamsResponse.Data("persons")(p)("personId")
+            Arr(7, r) = PostTeamsResponse.Data("persons")(p)("jiraUser")("jiraUsername")
+            r = r + 1
+        End If
+        p = p + 1
+    Next jiraPerson
+    Dim TeamRange As Range
+    Set TeamRange = ws_TeamsData.Range("A2").Resize(r - 1, 7)
+    TeamRange.Value = Application.WorksheetFunction.Transpose(Arr)
 End If
  
 End Function
@@ -1468,7 +1506,7 @@ Next c
 
 countOfReleases = dict.Count
 
-Dim arr As Variant
+Dim Arr As Variant
 Dim i As Integer
 
 With ws_TeamStats
@@ -1496,30 +1534,30 @@ End With
  
 End Function
 
-Private Function funcVelocity(ByVal arr As Variant, ByVal issueTypeRange As Range, _
+Private Function funcVelocity(ByVal Arr As Variant, ByVal issueTypeRange As Range, _
                                                                                 ByVal releaseDateRange As Range, _
                                                                                 ByVal currentReleaseDate As Long) As Long
     Dim i As Integer
 
-    For i = LBound(arr) To UBound(arr)
-        If i = LBound(arr) Then
-            funcVelocity = WorksheetFunction.CountIfs(issueTypeRange, arr(i), releaseDateRange, currentReleaseDate)
+    For i = LBound(Arr) To UBound(Arr)
+        If i = LBound(Arr) Then
+            funcVelocity = WorksheetFunction.CountIfs(issueTypeRange, Arr(i), releaseDateRange, currentReleaseDate)
         Else
-            funcVelocity = funcVelocity + WorksheetFunction.CountIfs(issueTypeRange, arr(i), releaseDateRange, currentReleaseDate)
+            funcVelocity = funcVelocity + WorksheetFunction.CountIfs(issueTypeRange, Arr(i), releaseDateRange, currentReleaseDate)
         End If
     Next i
 
 End Function
 
-Private Function funcBaselineVelocity(ByVal arr As Variant, ByVal issueTypeRange As Range, _
+Private Function funcBaselineVelocity(ByVal Arr As Variant, ByVal issueTypeRange As Range, _
                                                                                 ByVal countOfReleases As Integer) As Long
     Dim i As Integer
     
-    For i = LBound(arr) To UBound(arr)
-        If i = LBound(arr) Then
-            funcBaselineVelocity = WorksheetFunction.CountIf(issueTypeRange, arr(i))
+    For i = LBound(Arr) To UBound(Arr)
+        If i = LBound(Arr) Then
+            funcBaselineVelocity = WorksheetFunction.CountIf(issueTypeRange, Arr(i))
         Else
-            funcBaselineVelocity = funcBaselineVelocity + WorksheetFunction.CountIf(issueTypeRange, arr(i))
+            funcBaselineVelocity = funcBaselineVelocity + WorksheetFunction.CountIf(issueTypeRange, Arr(i))
         End If
     Next i
     funcBaselineVelocity = funcBaselineVelocity / countOfReleases
@@ -1566,7 +1604,7 @@ Private Function funcProductivityDistribution()
 '
 ''
  
-Dim arr(1 To 5, 1 To 13) As Long
+Dim Arr(1 To 5, 1 To 13) As Long
 Dim x%, y As Integer
 Dim issueTypeDoneRange As Range
 Dim issueTypeBacklogRange As Range
@@ -1632,7 +1670,7 @@ For Each i In issueTypeDoneRange
     Case Else
         x = 0
     End Select
-    If x > 0 And y > 0 Then arr(y, x) = arr(y, x) + 1
+    If x > 0 And y > 0 Then Arr(y, x) = Arr(y, x) + 1
 Next i
 
 For Each i In issueTypeBacklogRange
@@ -1649,7 +1687,7 @@ For Each i In issueTypeBacklogRange
         y = 0
     End If
     x = 13
-    If y > 0 Then arr(y, x) = arr(y, x) + 1
+    If y > 0 Then Arr(y, x) = Arr(y, x) + 1
 Next i
 
 With ws_TeamStats
@@ -1657,7 +1695,7 @@ With ws_TeamStats
     .Range("AS12").Value = "Defects"
     .Range("AS13").Value = "Risks"
     .Range("AS14").Value = "Debts"
-    .Range("AT11:BF14").Value = arr ' Data
+    .Range("AT11:BF14").Value = Arr ' Data
     .Range("AT15:BF15").Value = Array(WorksheetFunction.EoMonth(Date, -12), _
                                                             WorksheetFunction.EoMonth(Date, -11), _
                                                             WorksheetFunction.EoMonth(Date, -10), _
@@ -1675,12 +1713,12 @@ With ws_TeamStats
 End With
  
 End Function
-Private Function Contains(ByVal arr As Variant, ByVal v As String) As Boolean
+Private Function Contains(ByVal Arr As Variant, ByVal v As String) As Boolean
 Dim rv As Boolean, lb As Long, ub As Long, i As Long
-    lb = LBound(arr)
-    ub = UBound(arr)
+    lb = LBound(Arr)
+    ub = UBound(Arr)
     For i = lb To ub
-        If arr(i) = v Then
+        If Arr(i) = v Then
             rv = True
             Exit For
         End If
@@ -2011,39 +2049,39 @@ Private Function ws_DefectData() As Worksheet
 End Function
 Private Function ArrayOfDates(ByVal startDate As Long, ByVal endDate As Long) As Variant()
 
-    Dim arr() As Variant
+    Dim Arr() As Variant
     Dim DateLoop As Variant
     Dim i%, totalDays As Integer
     DateLoop = startDate
     totalDays = endDate - startDate
     ReDim ArrayOfDates(1 To totalDays + 1)
-    ReDim arr(1 To totalDays + 1)
+    ReDim Arr(1 To totalDays + 1)
     i = 1
     Do While DateLoop <= endDate
-        arr(i) = DateLoop
+        Arr(i) = DateLoop
         DateLoop = DateLoop + 1
         i = i + 1
     Loop
-    ArrayOfDates = arr
+    ArrayOfDates = Arr
     
 End Function
 Private Function MinMaxDate(ByVal dateRange As Range, ByVal MType As String) As Variant
     Dim c As Range
-    Dim arr() As Long
+    Dim Arr() As Long
     Dim totalDays As Integer
     totalDays = dateRange.Rows.Count
-    ReDim arr(1 To totalDays)
+    ReDim Arr(1 To totalDays)
     Dim i As Integer
     i = 1
     For Each c In dateRange
-        arr(i) = DateValue(Left(c.Value, 10))
+        Arr(i) = DateValue(Left(c.Value, 10))
         i = i + 1
     Next c
     
     If MType = "Max" Then
-        MinMaxDate = WorksheetFunction.Max(arr)
+        MinMaxDate = WorksheetFunction.Max(Arr)
     ElseIf MType = "Min" Then
-        MinMaxDate = WorksheetFunction.Min(arr)
+        MinMaxDate = WorksheetFunction.Min(Arr)
     Else
         MinMaxDate = 0
     End If
@@ -2068,19 +2106,19 @@ Private Function WiP(ByVal row As Long) As Integer
     Dim countRows As Long
     countRows = ws_WiPData.Range("H1").End(xlDown).row - 1
     
-    Dim arr() As Integer
-    ReDim arr(1 To headers.Columns.Count)
+    Dim Arr() As Integer
+    ReDim Arr(1 To headers.Columns.Count)
     Dim c As Range
     Dim i As Integer
     i = 1
     For Each c In headers
         If c.Offset(row).Value = 1 Then
-            arr(i) = WorksheetFunction.Sum(c.Resize(countRows, 1).Offset(1))
+            Arr(i) = WorksheetFunction.Sum(c.Resize(countRows, 1).Offset(1))
         End If
         i = i + 1
     Next c
     
-    WiP = WorksheetFunction.Max(arr)
+    WiP = WorksheetFunction.Max(Arr)
     
 End Function
 Private Function testDate(ByVal cell As Range) As Long
@@ -2100,19 +2138,19 @@ Private Function issueTypeSearchString() As String
     issueTypeSearchString = strFeatures & "," & strDefects & "," & strRisks & "," & strDebts
     
     '' Remove the duplicates using the dictionary method
-    Dim arr As Variant
-    arr = Split(issueTypeSearchString, ",")
+    Dim Arr As Variant
+    Arr = Split(issueTypeSearchString, ",")
     Dim i As Long
     Dim d As Dictionary
     Set d = New Dictionary
     With d
-        For i = LBound(arr) To UBound(arr)
-            If Not d.Exists(arr(i)) Then
-                d.Add arr(i), 1
+        For i = LBound(Arr) To UBound(Arr)
+            If Not d.Exists(Arr(i)) Then
+                d.Add Arr(i), 1
                 If d.Count = 1 Then
-                    issueTypeSearchString = arr(i)
+                    issueTypeSearchString = Arr(i)
                 Else
-                    issueTypeSearchString = issueTypeSearchString & "," & arr(i)
+                    issueTypeSearchString = issueTypeSearchString & "," & Arr(i)
                 End If
             End If
         Next
