@@ -234,7 +234,7 @@ ws_TeamStats.Unprotect ("KM_e@UyRnMtTqvWpd3NG")
         Debug.Print ("funcGetIncompleteJiras: " & callResult(2) & " : " & Now())
     callResult(3) = funcGet12MonthDoneJiras(boardJql, 0, 1)
         Debug.Print ("funcGet12MonthDoneJiras: " & callResult(3) & " : " & Now())
-    callResult(4) = funcGetDefects(boardJql, 0, 2)
+    callResult(4) = funcGetDefects(boardJql, 0, 1)
         Debug.Print ("funcGetDefects: " & callResult(4) & " : " & Now())
     callResult(5) = funcGetVelocity(rapidViewId)
         Debug.Print ("funcGetVelocity: " & callResult(5) & " : " & Now())
@@ -804,8 +804,8 @@ If funcGetVelocity = OK Then
             Arr(r, 1) = VelocityResponse.Data("sprints")(s)("id") ' SprintId
             Arr(r, 2) = VelocityResponse.Data("sprints")(s)("name") 'SprintName
             Arr(r, 3) = VelocityResponse.Data("sprints")(s)("state") 'SprintState
-            Arr(r, 4) = VelocityResponse.Data("velocityStatEntries")(CStr(.Cells(r, 1).Value))("estimated")("value") 'Commitment
-            Arr(r, 5) = VelocityResponse.Data("velocityStatEntries")(CStr(.Cells(r, 1).Value))("completed")("value") 'Completed
+            Arr(r, 4) = VelocityResponse.Data("velocityStatEntries")(CStr(Arr(r, 1)))("estimated")("value") 'Commitment
+            Arr(r, 5) = VelocityResponse.Data("velocityStatEntries")(CStr(Arr(r, 1)))("completed")("value") 'Completed
         End With
         r = r + 1
         s = s + 1
@@ -857,10 +857,10 @@ If funcPostTeamsFind = OK Then
     r = 1
     clearOldData ws_TeamsData
     Dim Arr As Variant
+    ReDim Preserve Arr(1 To 7, 1 To 1) As Variant 'intial size
     For Each jiraTeam In PostTeamsResponse.Data("teams")
         p = 1
         If PostTeamsResponse.Data("teams")(t)("id") = CStr(TeamId) Then ' Only import the Team that matches the one in the properties
-            ReDim Preserve Arr(1 To 7, 1 To r) As Variant 'resize upper bound of array - note this will need to be transposed
             For Each jiraResource In PostTeamsResponse.Data("teams")(t)("resources")
                 Arr(1, r) = PostTeamsResponse.Data("teams")(t)("id")
                 Arr(2, r) = PostTeamsResponse.Data("teams")(t)("title")
@@ -873,6 +873,7 @@ If funcPostTeamsFind = OK Then
                 End If
                 p = p + 1
                 r = r + 1
+                ReDim Preserve Arr(1 To 7, 1 To r) As Variant 'resize upper bound of array - note this will need to be transposed
             Next jiraResource
         End If
         t = t + 1
