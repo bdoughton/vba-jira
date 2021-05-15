@@ -1,18 +1,7 @@
-<customUI xmlns="http://schemas.microsoft.com/office/2006/01/customui"> 
-   <ribbon> 
-     <tabs> 
+<customUI xmlns="http://schemas.microsoft.com/office/2006/01/customui">
+   <ribbon>
+     <tabs>
        <tab id="tb_Jira" label="Jira">
-         <group id="gp_Jira-Agile" label="Jira Agile">
-           <splitButton id="mySplitButton1" size="large">
-               <button id="Button1" label="Get Jira Board Data" image="jira" supertip="This is a splitButton." onAction="GetJiraAgileBoard" />
-               <menu id="splitMenu1" itemSize="large">
-                 <!-- use itemSize = large or use normal -->
-                 <button id="Button2" imageMso="SearchCalendarsOnline" label="Update Base URL" onAction="UpdateBaseUrl" description="Update the base URL"/>
-                 <button id="Button3" imageMso="Head" label="Update Login" onAction="UpdateUser" description="Update Name and Password"/>
-                 <button id="Button4" imageMso="TableFind" label="Update Board ID" onAction="ThisDocument.Macro16" description="Update the Board ID"/>
-               </menu>
-           </splitButton>
-         </group >
          <group id="gp_Jira-Scrum-Stats" label="Jira Stats">
            <splitButton id="mySplitButton2" size="large">
                <button id="Button5" label="Get Stats From Jira" imageMso="SparklineColumnInsert" supertip="This is a splitButton." onAction="GetTeamStats" />
@@ -32,8 +21,8 @@
          <group id="gp_license" label="via-jira license">
 		<labelControl id="license1" label="Author: Ben Doughton" />
 		<labelControl id="license2" label="License: GNU General Public License v3.0" />
-         </group >	
+         </group >
        </tab> 
-     </tabs> 
-   </ribbon> 
+     </tabs>
+   </ribbon>
  </customUI>
